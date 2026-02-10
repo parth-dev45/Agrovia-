@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? "/Agrovia2/" : "/", // Only use base path in production
+  base: mode === 'production' ? "/Agrovia-/" : "/", // Matches repo name 'Agrovia-'
   server: {
     host: "::",
     port: 8080,
