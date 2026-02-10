@@ -208,6 +208,11 @@ export default {
 			'shimmer': {
 				'0%': { transform: 'translateX(-100%)' },
 				'100%': { transform: 'translateX(100%)' }
+			},
+			'shake': {
+				'0%, 100%': { transform: 'translateX(0)' },
+				'10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
+				'20%, 40%, 60%, 80%': { transform: 'translateX(4px)' }
 			}
   		},
   		animation: {
@@ -222,7 +227,8 @@ export default {
 			'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
 			'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
 			'gradient-x': 'gradient-x 3s ease infinite',
-			'shimmer': 'shimmer 2s ease-in-out infinite'
+			'shimmer': 'shimmer 2s ease-in-out infinite',
+			'shake': 'shake 0.4s ease-in-out'
   		},
   		boxShadow: {
   			'2xs': 'var(--shadow-2xs)',
@@ -235,36 +241,23 @@ export default {
   		},
   		fontFamily: {
   			sans: [
-  				'DM Sans',
-  				'ui-sans-serif',
-  				'system-ui',
+  				'Inter',
+  				'SF Pro Display',
   				'-apple-system',
   				'BlinkMacSystemFont',
   				'Segoe UI',
   				'Roboto',
   				'Helvetica Neue',
   				'Arial',
-  				'Noto Sans',
   				'sans-serif'
   			],
-  			serif: [
-  				'Crimson Pro',
-  				'ui-serif',
-  				'Georgia',
-  				'Cambria',
-  				'Times New Roman',
-  				'Times',
-  				'serif'
-  			],
   			mono: [
-  				'SF Mono',
+  				'JetBrains Mono',
+  				'Fira Code',
   				'ui-monospace',
-  				'SFMono-Regular',
   				'Menlo',
   				'Monaco',
   				'Consolas',
-  				'Liberation Mono',
-  				'Courier New',
   				'monospace'
   			]
   		}

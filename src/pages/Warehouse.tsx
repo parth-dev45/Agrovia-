@@ -19,6 +19,7 @@ export default function Warehouse() {
   const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'Fresh' | 'Consume Soon' | 'Expired'>('all');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
 
   const filteredBatches = batches
     .filter(b => {
@@ -38,7 +39,7 @@ export default function Warehouse() {
     .map(b => ({
       batch: b,
       type: b.retailStatus!.remainingDays <= 1 ? 'urgent' : 'warning',
-      message: b.retailStatus!.remainingDays <= 1 
+      message: b.retailStatus!.remainingDays <= 1
         ? `URGENT: ${b.batchId} expires tomorrow!`
         : `Warning: ${b.batchId} expires in ${b.retailStatus!.remainingDays} days`
     }));
@@ -92,7 +93,7 @@ export default function Warehouse() {
             <CardContent>
               <div className="space-y-2">
                 {notifications.map((notif) => (
-                  <div 
+                  <div
                     key={notif.batch.batchId}
                     className={cn(
                       'flex items-center justify-between p-3 rounded-lg',
@@ -100,8 +101,8 @@ export default function Warehouse() {
                     )}
                   >
                     <span className="font-medium">{notif.message}</span>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="ghost"
                       onClick={() => setSelectedBatch(notif.batch.batchId)}
                     >
@@ -183,28 +184,79 @@ export default function Warehouse() {
           {/* Batch List */}
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <WarehouseIcon className="h-5 w-5" />
                   Inventory ({filteredBatches.length} batches)
                 </CardTitle>
+                {/* Bulk Actions Toolbar */}
+                {selectedBatchIds.length > 0 && (
+                  <div className="flex items-center gap-2 animate-in slide-in-from-right-5 fade-in duration-300">
+                    <span className="text-sm text-muted-foreground mr-2">
+                      {selectedBatchIds.length} selected
+                    </span>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm(`Delete ${selectedBatchIds.length} batches?`)) {
+                          // In a real app, this would delete from backend
+                          toast.success(`Deleted ${selectedBatchIds.length} batches`);
+                          setSelectedBatchIds([]);
+                        }
+                      }}
+                    >
+                      Delete Selected
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedBatchIds([])}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {filteredBatches.map((batch) => (
                     <div
                       key={batch.batchId}
-                      onClick={() => setSelectedBatch(batch.batchId)}
                       className={cn(
-                        'flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors',
-                        selectedBatch === batch.batchId 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:bg-secondary'
+                        'flex items-center justify-between p-4 rounded-lg border transition-colors group',
+                        selectedBatch === batch.batchId
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:bg-secondary',
+                        selectedBatchIds.includes(batch.batchId) && 'bg-accent border-accent-foreground/20'
                       )}
                     >
                       <div className="flex items-center gap-4">
-                        <div>
-                          <p className="font-mono font-medium">{batch.batchId}</p>
+                        <div className="flex items-center h-full">
+                          <input
+                            type="checkbox"
+                            checked={selectedBatchIds.includes(batch.batchId)}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              if (e.target.checked) {
+                                setSelectedBatchIds([...selectedBatchIds, batch.batchId]);
+                              } else {
+                                setSelectedBatchIds(selectedBatchIds.filter(id => id !== batch.batchId));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mr-3 cursor-pointer"
+                          />
+                        </div>
+                        <div
+                          className="cursor-pointer"
+                          onClick={() => setSelectedBatch(batch.batchId)}
+                        >
+                          <p className="font-mono font-medium flex items-center gap-2">
+                            {batch.batchId}
+                            {selectedBatchIds.includes(batch.batchId) && (
+                              <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Selected</Badge>
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {batch.quantity} kg • Grade {batch.qualityGrade}
                           </p>
@@ -213,7 +265,7 @@ export default function Warehouse() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-sm font-medium">
-                            {batch.retailStatus && batch.retailStatus.remainingDays > 0 
+                            {batch.retailStatus && batch.retailStatus.remainingDays > 0
                               ? `${batch.retailStatus.remainingDays}d left`
                               : 'Expired'}
                           </p>

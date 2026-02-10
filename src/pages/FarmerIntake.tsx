@@ -6,24 +6,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { getAllFarmers, addBatch, addFarmer } from '@/lib/mockData';
+// import { getAllFarmers, addBatch, addFarmer } from '@/lib/mockData'; // Removed
+import { addBatchToFirestore } from '@/lib/services/batchService';
+import { useFarmers, addFarmerToFirestore } from '@/lib/services/farmerService';
 import { generateBatchId, generateQRId, calculateExpiryDate, calculateRemainingDays, determineFreshnessStatus, isSaleAllowed } from '@/lib/freshness';
 import { Farmer, BatchWithDetails, StorageType, QualityGrade, PRODUCTS, getProductById, WAREHOUSES, WarehouseId, convertKgToCrates, getCrateCapacity } from '@/lib/types';
-import { addBatchToWarehouse, validateBatchInWarehouse } from '@/lib/warehouseData';
 import { useToast } from '@/hooks/use-toast';
-import { Info, Plus, CheckCircle2, Search, ArrowRight, PackagePlus, ArrowLeft } from 'lucide-react';
+import { Info, Plus, CheckCircle2, Search, ArrowRight, PackagePlus, ArrowLeft, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast as sonnerToast } from 'sonner';
 import { useInventoryStore } from '@/lib/store';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ProductIcon } from '@/components/ProductIcon';
 
 export default function FarmerIntake() {
   const { toast } = useToast();
-  const farmers = getAllFarmers();
+  const { farmers, loading: farmersLoading } = useFarmers(); // Using hook
 
   const addToInventory = useInventoryStore((state) => state.addToInventory);
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     farmerId: '',
@@ -89,7 +92,7 @@ export default function FarmerIntake() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.farmerId && !newFarmerName) {
@@ -111,6 +114,8 @@ export default function FarmerIntake() {
       });
       return;
     }
+
+    setIsSubmitting(true);
 
     const batchId = generateBatchId();
     const harvestDate = new Date(formData.harvestDate);
@@ -164,12 +169,7 @@ export default function FarmerIntake() {
     };
 
     try {
-      addBatch(batch);
-      const warehouseAdded = addBatchToWarehouse(batchId, formData.warehouseId as WarehouseId, crateCount);
-
-      if (!warehouseAdded) {
-        throw new Error('Failed to add batch to warehouse');
-      }
+      await addBatchToFirestore(batch);
 
       setCreatedBatch(batch);
 
@@ -200,37 +200,47 @@ export default function FarmerIntake() {
       });
 
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to add batch to warehouse inventory';
+      const message = error instanceof Error ? error.message : 'Failed to add batch';
       toast({
-        title: 'Error Adding to Warehouse',
+        title: 'Error Creating Batch',
         description: message,
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleAddFarmer = () => {
+  const handleAddFarmer = async () => {
     if (!newFarmerName.trim()) return;
 
-    const farmerId = `F${(farmers.length + 1).toString().padStart(3, '0')}`;
-    const farmerCode = `FRM-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+    try {
+      const farmerId = `F${(farmers.length + 1).toString().padStart(3, '0')}`;
+      const farmerCode = `FRM-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
 
-    const newFarmer: Farmer = {
-      farmerId,
-      farmerCode,
-      name: newFarmerName.trim(),
-    };
+      const newFarmer: Farmer = {
+        farmerId,
+        farmerCode,
+        name: newFarmerName.trim(),
+      };
 
-    addFarmer(newFarmer);
-    setFormData({ ...formData, farmerId });
-    setNewFarmerName('');
-    setShowNewFarmer(false);
+      await addFarmerToFirestore(newFarmer);
+      // setFormData({ ...formData, farmerId }); // Don't set immediately as it needs to come back from subscription
+      // But for UX we might want to optimistic update or just wait for the hook
+      setNewFarmerName('');
+      setShowNewFarmer(false);
 
-    toast({
-      title: 'Farmer Added',
-      description: `${newFarmerName} has been registered.`,
-    });
+      toast({
+        title: 'Farmer Added',
+        description: `${newFarmerName} has been registered.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add farmer",
+        variant: "destructive"
+      });
+    }
   };
 
   const resetForm = () => {
@@ -249,7 +259,7 @@ export default function FarmerIntake() {
 
   if (createdBatch) {
     const product = getProductById(createdBatch.cropType) ||
-      { id: createdBatch.cropType, name: createdBatch.cropType, emoji: '', category: 'Vegetable' as const, unit: 'kg' };
+      { id: createdBatch.cropType, name: createdBatch.cropType, category: 'Vegetable' as const, unit: 'kg' };
 
     return (
       <Layout>
@@ -278,6 +288,12 @@ export default function FarmerIntake() {
                   size={180}
                   level="M"
                   includeMargin
+                  imageSettings={{
+                    src: "/logo.png",
+                    height: 40,
+                    width: 40,
+                    excavate: true,
+                  }}
                 />
               </div>
 
@@ -379,7 +395,7 @@ export default function FarmerIntake() {
                     <SelectValue placeholder="Select a product">
                       {selectedProduct && (
                         <span className="flex items-center gap-2">
-                          <span className="text-xl">{selectedProduct.emoji}</span>
+                          <ProductIcon productId={selectedProduct.id} size={20} />
                           <span className="font-medium">{selectedProduct.name}</span>
                         </span>
                       )}
@@ -409,7 +425,7 @@ export default function FarmerIntake() {
                             className="cursor-pointer py-3 px-4 focus:bg-primary/10 rounded-lg mx-2 my-0.5"
                           >
                             <span className="flex items-center gap-3">
-                              <span className="text-xl">{product.emoji}</span>
+                              <ProductIcon productId={product.id} size={20} />
                               <span className="font-medium">{product.name}</span>
                               <span className="text-xs text-muted-foreground ml-auto bg-secondary px-2 py-1 rounded-md">
                                 per {product.unit}
@@ -674,10 +690,19 @@ export default function FarmerIntake() {
               <Button
                 type="submit"
                 className="w-full h-14 text-lg font-semibold rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] transition-all shadow-xl shadow-primary/20"
-                disabled={!formData.productId}
+                disabled={!formData.productId || isSubmitting}
               >
-                Generated Batch ID
-                <ArrowRight className="ml-2 h-5 w-5" />
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Registering...
+                  </>
+                ) : (
+                  <>
+                    Generated Batch ID
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
               </Button>
             </form>
           </CardContent>

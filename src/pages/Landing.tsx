@@ -35,11 +35,11 @@ export default function Landing() {
                         <button onClick={() => scrollToSection('pricing')} className="hover:text-primary transition-colors duration-200">Pricing</button>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link to="/dashboard">
+                        <Link to="/auth">
                             <Button variant="ghost" className="hidden md:inline-flex">Sign In</Button>
                         </Link>
-                        <Link to="/dashboard">
-                            <Button variant="gradient" size="lg" className="rounded-2xl px-8 shadow-xl">
+                        <Link to="/auth">
+                            <Button variant="default" size="lg" className="rounded-lg px-8 h-11 shadow-md">
                                 Get Started <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </Link>

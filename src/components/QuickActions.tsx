@@ -268,8 +268,8 @@ export function QuickActions({
               return (
                 <Link key={action.id} to={action.href} onClick={() => handleActionClick(action.id)}>
                   <Card className={cn(
-                    "group cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border-0 bg-gradient-to-br from-background to-secondary/30 overflow-hidden relative",
-                    isRecent && "ring-1 ring-primary/30 shadow-primary/10"
+                    "group cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 border border-border bg-card overflow-hidden relative shadow-sm rounded-lg",
+                    isRecent && "ring-1 ring-primary/20"
                   )}>
                     <CardContent className="p-6 relative">
                       {action.urgent && (

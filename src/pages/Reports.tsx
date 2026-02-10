@@ -52,6 +52,18 @@ type DateRange = {
   to: Date;
 };
 
+// Helper for safe date formatting
+const safeDateFormat = (dateInput: any, formatStr: string) => {
+  try {
+    if (!dateInput) return 'N/A';
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return format(date, formatStr);
+  } catch (e) {
+    return 'Error';
+  }
+};
+
 export default function Reports() {
   const [dateRange, setDateRange] = useState<DateRange>({
     from: subDays(new Date(), 30),
@@ -199,15 +211,17 @@ export default function Reports() {
 
     for (let i = days - 1; i >= 0; i--) {
       const date = subDays(new Date(), i);
+      const formattedDate = safeDateFormat(date, 'yyyy-MM-dd');
+
       const dayBatches = batches.filter(b =>
-        format(new Date(b.harvestDate), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+        safeDateFormat(b.harvestDate, 'yyyy-MM-dd') === formattedDate
       );
       const dayBills = bills.filter(b =>
-        format(new Date(b.createdAt), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+        safeDateFormat(b.createdAt, 'yyyy-MM-dd') === formattedDate
       );
 
       trend.push({
-        date: format(date, 'MMM d'),
+        date: safeDateFormat(date, 'MMM d'),
         batches: dayBatches.length,
         quantity: dayBatches.reduce((sum, b) => sum + b.quantity, 0),
         revenue: dayBills.reduce((sum, b) => sum + b.totalAmount, 0)
@@ -237,7 +251,7 @@ export default function Reports() {
           {/* Background decorations */}
           <div className="absolute top-4 right-4 w-32 h-32 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute bottom-4 left-4 w-24 h-24 bg-fresh/20 rounded-full blur-2xl" />
-          
+
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-6">
               <div className="h-20 w-20 bg-white/80 dark:bg-black/20 rounded-3xl flex items-center justify-center shadow-xl backdrop-blur-sm border border-primary/20">
@@ -285,7 +299,7 @@ export default function Reports() {
                 <PopoverTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground font-medium">
                     <CalendarIcon className="h-4 w-4" />
-                    {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                    {safeDateFormat(dateRange.from, 'MMM d')} - {safeDateFormat(dateRange.to, 'MMM d')}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -402,26 +416,26 @@ export default function Reports() {
                         strokeWidth={2}
                       >
                         {statusData.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
+                          <Cell
+                            key={`cell-${index}`}
                             fill={
                               index === 0 ? "url(#freshGradient)" :
-                              index === 1 ? "url(#warningGradient)" :
-                              "url(#expiredGradient)"
+                                index === 1 ? "url(#warningGradient)" :
+                                  "url(#expiredGradient)"
                             }
                           />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ 
-                          borderRadius: '16px', 
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '16px',
                           border: 'none',
                           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
                           backgroundColor: 'hsl(var(--card))',
                           color: 'hsl(var(--card-foreground))'
-                        }} 
+                        }}
                       />
-                      <Legend 
+                      <Legend
                         wrapperStyle={{ paddingTop: '20px' }}
                         iconType="circle"
                       />
@@ -442,48 +456,48 @@ export default function Reports() {
                           <stop offset="95%" stopColor="hsl(142, 60%, 30%)" stopOpacity={0.05} />
                         </linearGradient>
                         <filter id="glow">
-                          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                          <feMerge> 
-                            <feMergeNode in="coloredBlur"/>
-                            <feMergeNode in="SourceGraphic"/>
+                          <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                          <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
                           </feMerge>
                         </filter>
                       </defs>
-                      <CartesianGrid 
-                        strokeDasharray="3 3" 
-                        vertical={false} 
-                        stroke="hsl(var(--border))" 
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="hsl(var(--border))"
                         strokeOpacity={0.3}
                       />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tickMargin={15} 
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tickMargin={15}
                         fontSize={12}
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
                         fontSize={12}
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <Tooltip 
-                        contentStyle={{ 
-                          borderRadius: '16px', 
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '16px',
                           border: 'none',
                           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
                           backgroundColor: 'hsl(var(--card))',
                           color: 'hsl(var(--card-foreground))'
-                        }} 
+                        }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="quantity" 
-                        stroke="hsl(142, 60%, 30%)" 
+                      <Area
+                        type="monotone"
+                        dataKey="quantity"
+                        stroke="hsl(142, 60%, 30%)"
                         strokeWidth={3}
-                        fillOpacity={1} 
+                        fillOpacity={1}
                         fill="url(#colorQty)"
                         filter="url(#glow)"
                         dot={{ fill: 'hsl(142, 60%, 30%)', strokeWidth: 2, r: 4 }}
@@ -501,10 +515,10 @@ export default function Reports() {
               {farmerPerformance.slice(0, 3).map((farmer, index) => (
                 <Card key={farmer.farmerId} className={cn(
                   "glass-card border-none relative overflow-hidden group hover:scale-105 transition-all duration-300",
-                  index === 0 ? "bg-gradient-to-br from-yellow-500/15 via-yellow-400/10 to-transparent ring-2 ring-yellow-500/30 shadow-xl shadow-yellow-500/10" : 
-                  index === 1 ? "bg-gradient-to-br from-gray-400/15 via-gray-300/10 to-transparent ring-2 ring-gray-400/30 shadow-xl shadow-gray-400/10" :
-                  index === 2 ? "bg-gradient-to-br from-orange-500/15 via-orange-400/10 to-transparent ring-2 ring-orange-500/30 shadow-xl shadow-orange-500/10" :
-                  "bg-white/40 hover:bg-white/60"
+                  index === 0 ? "bg-gradient-to-br from-yellow-500/15 via-yellow-400/10 to-transparent ring-2 ring-yellow-500/30 shadow-xl shadow-yellow-500/10" :
+                    index === 1 ? "bg-gradient-to-br from-gray-400/15 via-gray-300/10 to-transparent ring-2 ring-gray-400/30 shadow-xl shadow-gray-400/10" :
+                      index === 2 ? "bg-gradient-to-br from-orange-500/15 via-orange-400/10 to-transparent ring-2 ring-orange-500/30 shadow-xl shadow-orange-500/10" :
+                        "bg-white/40 hover:bg-white/60"
                 )}>
                   {index === 0 && (
                     <div className="absolute top-0 right-0 bg-gradient-to-br from-yellow-500 to-yellow-600 text-white px-4 py-2 rounded-bl-2xl text-xs font-bold shadow-lg flex items-center gap-1">
@@ -526,10 +540,10 @@ export default function Reports() {
                     <CardTitle className="flex items-center gap-4">
                       <div className={cn(
                         "h-14 w-14 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg transition-all duration-300 group-hover:scale-110",
-                        index === 0 ? "bg-gradient-to-br from-yellow-500 to-yellow-600 text-white shadow-yellow-500/30" : 
-                        index === 1 ? "bg-gradient-to-br from-gray-400 to-gray-500 text-white shadow-gray-400/30" :
-                        index === 2 ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-orange-500/30" :
-                        "bg-gradient-to-br from-secondary to-secondary/80"
+                        index === 0 ? "bg-gradient-to-br from-yellow-500 to-yellow-600 text-white shadow-yellow-500/30" :
+                          index === 1 ? "bg-gradient-to-br from-gray-400 to-gray-500 text-white shadow-gray-400/30" :
+                            index === 2 ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-orange-500/30" :
+                              "bg-gradient-to-br from-secondary to-secondary/80"
                       )}>
                         #{index + 1}
                       </div>
@@ -550,30 +564,30 @@ export default function Reports() {
                     </div>
                     <div className="space-y-3">
                       <div className="w-full bg-secondary/50 h-3 rounded-full overflow-hidden flex shadow-inner">
-                        <div 
-                          style={{ width: `${(farmer.gradeA / farmer.totalBatches) * 100}%` }} 
-                          className="bg-gradient-to-r from-fresh to-green-500 transition-all duration-500" 
+                        <div
+                          style={{ width: `${(farmer.gradeA / farmer.totalBatches) * 100}%` }}
+                          className="bg-gradient-to-r from-fresh to-green-500 transition-all duration-500"
                         />
-                        <div 
-                          style={{ width: `${(farmer.gradeB / farmer.totalBatches) * 100}%` }} 
-                          className="bg-gradient-to-r from-warning to-orange-500 transition-all duration-500" 
+                        <div
+                          style={{ width: `${(farmer.gradeB / farmer.totalBatches) * 100}%` }}
+                          className="bg-gradient-to-r from-warning to-orange-500 transition-all duration-500"
                         />
-                        <div 
-                          style={{ width: `${(farmer.gradeC / farmer.totalBatches) * 100}%` }} 
-                          className="bg-gradient-to-r from-muted-foreground to-gray-500 transition-all duration-500" 
+                        <div
+                          style={{ width: `${(farmer.gradeC / farmer.totalBatches) * 100}%` }}
+                          className="bg-gradient-to-r from-muted-foreground to-gray-500 transition-all duration-500"
                         />
                       </div>
                       <div className="flex justify-between text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-fresh shadow-sm" /> 
+                          <div className="w-2.5 h-2.5 rounded-full bg-fresh shadow-sm" />
                           Grade A ({farmer.gradeA})
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-warning shadow-sm" /> 
+                          <div className="w-2.5 h-2.5 rounded-full bg-warning shadow-sm" />
                           Grade B ({farmer.gradeB})
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full bg-gray-400 shadow-sm" /> 
+                          <div className="w-2.5 h-2.5 rounded-full bg-gray-400 shadow-sm" />
                           Grade C ({farmer.gradeC})
                         </span>
                       </div>
@@ -608,56 +622,56 @@ export default function Reports() {
                         <stop offset="100%" stopColor="#475569" stopOpacity={1} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      vertical={false} 
-                      stroke="hsl(var(--border))" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="hsl(var(--border))"
                       strokeOpacity={0.3}
                     />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tickMargin={15} 
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={15}
                       fontSize={12}
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
                     />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
                       fontSize={12}
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
                     />
-                    <Tooltip 
-                      cursor={{ fill: 'hsl(var(--muted))', fillOpacity: 0.1 }} 
-                      contentStyle={{ 
-                        borderRadius: '16px', 
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted))', fillOpacity: 0.1 }}
+                      contentStyle={{
+                        borderRadius: '16px',
                         border: 'none',
                         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
                         backgroundColor: 'hsl(var(--card))',
                         color: 'hsl(var(--card-foreground))'
-                      }} 
+                      }}
                     />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Bar 
-                      dataKey="gradeA" 
-                      name="Grade A" 
-                      stackId="a" 
-                      fill="url(#gradeAGradient)" 
-                      radius={[0, 0, 6, 6]} 
+                    <Bar
+                      dataKey="gradeA"
+                      name="Grade A"
+                      stackId="a"
+                      fill="url(#gradeAGradient)"
+                      radius={[0, 0, 6, 6]}
                     />
-                    <Bar 
-                      dataKey="gradeB" 
-                      name="Grade B" 
-                      stackId="a" 
-                      fill="url(#gradeBGradient)" 
+                    <Bar
+                      dataKey="gradeB"
+                      name="Grade B"
+                      stackId="a"
+                      fill="url(#gradeBGradient)"
                     />
-                    <Bar 
-                      dataKey="gradeC" 
-                      name="Grade C" 
-                      stackId="a" 
-                      fill="url(#gradeCGradient)" 
-                      radius={[6, 6, 0, 0]} 
+                    <Bar
+                      dataKey="gradeC"
+                      name="Grade C"
+                      stackId="a"
+                      fill="url(#gradeCGradient)"
+                      radius={[6, 6, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -757,61 +771,61 @@ export default function Reports() {
                           <stop offset="100%" stopColor="hsl(142, 60%, 30%)" stopOpacity={0.8} />
                         </linearGradient>
                         <filter id="revenueGlow">
-                          <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                          <feMerge> 
-                            <feMergeNode in="coloredBlur"/>
-                            <feMergeNode in="SourceGraphic"/>
+                          <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                          <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
                           </feMerge>
                         </filter>
                       </defs>
-                      <CartesianGrid 
-                        strokeDasharray="3 3" 
-                        vertical={false} 
-                        stroke="hsl(var(--border))" 
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="hsl(var(--border))"
                         strokeOpacity={0.3}
                       />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tickMargin={15} 
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tickMargin={15}
                         fontSize={12}
                         tick={{ fill: 'hsl(var(--muted-foreground))' }}
                       />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false} 
-                        fontSize={12} 
-                        hide 
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        fontSize={12}
+                        hide
                       />
-                      <Tooltip 
-                        contentStyle={{ 
-                          borderRadius: '16px', 
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: '16px',
                           border: 'none',
                           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
                           backgroundColor: 'hsl(var(--card))',
                           color: 'hsl(var(--card-foreground))'
-                        }} 
+                        }}
                       />
-                      <Line 
-                        type="monotone" 
-                        dataKey="revenue" 
-                        stroke="url(#revenueGradient)" 
-                        strokeWidth={4} 
-                        dot={{ 
-                          r: 5, 
-                          strokeWidth: 3, 
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="url(#revenueGradient)"
+                        strokeWidth={4}
+                        dot={{
+                          r: 5,
+                          strokeWidth: 3,
                           stroke: 'hsl(142, 60%, 30%)',
                           fill: '#fff',
                           filter: 'url(#revenueGlow)'
-                        }} 
-                        activeDot={{ 
-                          r: 8, 
+                        }}
+                        activeDot={{
+                          r: 8,
                           stroke: 'hsl(142, 60%, 30%)',
                           strokeWidth: 3,
                           fill: '#fff',
                           filter: 'url(#revenueGlow)'
-                        }} 
+                        }}
                         filter="url(#revenueGlow)"
                       />
                     </LineChart>
@@ -829,9 +843,9 @@ export default function Reports() {
                         <div className={cn(
                           "flex items-center justify-center w-10 h-10 rounded-xl font-bold text-lg transition-all duration-300",
                           i === 0 ? "bg-gradient-to-br from-yellow-400 to-yellow-500 text-white shadow-lg shadow-yellow-500/25" :
-                          i === 1 ? "bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 shadow-lg shadow-gray-400/25" :
-                          i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-lg shadow-orange-500/25" :
-                          "bg-gradient-to-br from-primary/20 to-primary/30 text-primary"
+                            i === 1 ? "bg-gradient-to-br from-gray-300 to-gray-400 text-gray-700 shadow-lg shadow-gray-400/25" :
+                              i === 2 ? "bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-lg shadow-orange-500/25" :
+                                "bg-gradient-to-br from-primary/20 to-primary/30 text-primary"
                         )}>
                           {i + 1}
                         </div>

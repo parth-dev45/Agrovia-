@@ -216,3 +216,6 @@ export function resetData(): void {
   localStorage.removeItem(STORAGE_KEY_FARMERS);
   initializeStorage();
 }
+
+// Re-export utility functions from freshness.ts for convenience
+export { generateBatchId, generateQRId } from './freshness';

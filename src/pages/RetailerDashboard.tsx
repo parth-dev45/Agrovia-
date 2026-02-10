@@ -8,20 +8,19 @@ import { WAREHOUSES, WarehouseId, convertCratesToKg, getCrateCapacity, getProduc
 import {
   Order,
   Bill,
-  getAllOrders,
-  addOrder,
-  addBill,
   generateOrderId,
   generateBillId,
   generateUniqueCode,
 } from '@/lib/orderData';
+
+import { getBatchById } from '@/lib/mockData'; // Still needed for some utility? Maybe replace later.
+import { useBatches } from '@/lib/services/batchService';
 import {
-  getRetailerInventory,
-  syncFulfilledOrdersToInventory,
-  reduceRetailerInventory,
-  getRetailerAvailableQuantity
-} from '@/lib/retailerInventory';
-import { getBatchById, getAllBatches } from '@/lib/mockData';
+  useOrders,
+  addOrderToFirestore,
+  addBillToFirestore,
+  useBills
+} from '@/lib/services/orderService';
 import { PRODUCTS, getProductById, getProductPrice, QualityGrade } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -50,8 +49,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useInventoryStore, Product } from '@/lib/store';
 import { getRetailerStoreById } from '@/lib/retailers';
-import { getCustomerByPhone, createCustomer } from '@/lib/customers';
 import { getNearestWarehouse, createDeliveryStages } from '@/lib/retailers';
+import { ProductIcon } from '@/components/ProductIcon';
 
 interface CartItem {
   batchId: string;
@@ -61,24 +60,86 @@ interface CartItem {
   pricePerKg: number;
 }
 
+// Safe date formatting helper
+const safeDateFormat = (date: any, formatStr: string) => {
+  try {
+    if (!date) return 'N/A';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return format(d, formatStr);
+  } catch (e) {
+    return 'Error';
+  }
+};
+
 export default function RetailerDashboard() {
   const retailerId = 'RET-001';
   const [activeTab, setActiveTab] = useState('inventory');
   const [selectedWarehouse, setSelectedWarehouse] = useState<WarehouseId | 'all'>('all');
 
-  // For ordering: Show warehouse inventory (available for ordering) from mockData
-  const [orderableBatches, setOrderableBatches] = useState(() => {
-    const allBatches = getAllBatches().filter(b => b.qualityGrade !== null && b.status === 'Stored' && b.retailStatus?.saleAllowed);
-    return selectedWarehouse === 'all' ? allBatches : allBatches.filter(b => b.warehouseId === selectedWarehouse);
-  });
+  // Firestore Integration
+  const { batches: allBatches, loading: batchesLoading } = useBatches();
+  const { orders: allOrders, loading: ordersLoading } = useOrders();
+  const { bills } = useBills();
 
-  // For POS: Show retailer's own inventory
-  const [retailerInventory, setRetailerInventory] = useState(() => {
-    const inv = getRetailerInventory(retailerId);
-    return inv.sort((a, b) => new Date(a.retailStatus!.sellByDate).getTime() - new Date(b.retailStatus!.sellByDate).getTime());
-  });
+  // For ordering: Show warehouse inventory (available for ordering) from Firestore
+  const orderableBatches = useMemo(() => {
+    return allBatches.filter(b => b.qualityGrade !== null && b.status === 'Stored' && b.retailStatus?.saleAllowed && (selectedWarehouse === 'all' || b.warehouseId === selectedWarehouse));
+  }, [allBatches, selectedWarehouse]);
 
-  const [orders, setOrders] = useState<Order[]>(getAllOrders());
+  // For POS: Calculate retailer's own inventory dynamically from Firestore (Event Sourcing)
+  // Inventory = Sum(Fulfilled Orders) - Sum(Billed Items)
+  const retailerInventory = useMemo(() => {
+    const invMap = new Map<string, any>();
+
+    // 1. Add Stock from Fulfilled Orders
+    allOrders.forEach(order => {
+      // Ensure we only count fulfilled orders for this retailer
+      if (order.retailerId === retailerId && order.status === 'Fulfilled') {
+        const batch = allBatches.find(b => b.batchId === order.batchId);
+        if (!batch) return;
+
+        const qtyKg = order.quantityKg || convertCratesToKg(order.quantity, batch.cropType);
+
+        if (!invMap.has(order.batchId)) {
+          invMap.set(order.batchId, {
+            ...batch, // Include all batch details (retailStatus, etc.)
+            quantity: 0, // This will track available KG
+            origBatch: batch
+          });
+        }
+
+        const current = invMap.get(order.batchId);
+        current.quantity += qtyKg;
+      }
+    });
+
+    // 2. Subtract Sales from Bills
+    bills.forEach(bill => {
+      if (bill.retailerId === retailerId) {
+        bill.items.forEach(item => {
+          const current = invMap.get(item.batchId);
+          if (current) {
+            current.quantity -= item.quantity;
+          }
+        });
+      }
+    });
+
+    // 3. Filter out empty/negative stock and sort by expiry
+    return Array.from(invMap.values())
+      .filter(item => item.quantity > 0.1) // Tolerance for float math
+      .sort((a, b) => {
+        const dateA = a.retailStatus?.sellByDate ? new Date(a.retailStatus.sellByDate).getTime() : 0;
+        const dateB = b.retailStatus?.sellByDate ? new Date(b.retailStatus.sellByDate).getTime() : 0;
+        return dateA - dateB;
+      });
+
+  }, [allOrders, bills, allBatches, retailerId]);
+
+  // Filter orders for this retailer
+  const orders = useMemo(() => allOrders.filter(o => o.retailerId === retailerId), [allOrders, retailerId]);
+
   const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedBatch, setSelectedBatch] = useState('');
   const [orderCrateQuantity, setOrderCrateQuantity] = useState('');
@@ -97,39 +158,21 @@ export default function RetailerDashboard() {
   const [billPaymentMethod, setBillPaymentMethod] = useState<'Cash' | 'Card' | 'UPI' | 'Card Swipe/NFC'>('Cash');
 
   const expiringSoonCount = retailerInventory.filter(i => {
-    const daysLeft = (new Date(i.retailStatus!.sellByDate).getTime() - Date.now()) / (1000 * 3600 * 24);
+    // Check if sellByDate exists and handles potential string/date types
+    if (!i.retailStatus?.sellByDate) return false;
+    const sellBy = new Date(i.retailStatus.sellByDate).getTime();
+    if (isNaN(sellBy)) return false;
+
+    const daysLeft = (sellBy - Date.now()) / (1000 * 3600 * 24);
     return daysLeft <= 3 && daysLeft > 0;
   }).length;
 
-  // Sync fulfilled orders to retailer inventory
-  useEffect(() => {
-    syncFulfilledOrdersToInventory(retailerId);
-    const sortedInv = getRetailerInventory(retailerId).sort((a, b) =>
-      new Date(a.retailStatus!.sellByDate).getTime() - new Date(b.retailStatus!.sellByDate).getTime()
-    );
-    setRetailerInventory(sortedInv);
-  }, [orders, retailerId]);
+
+  // Removed syncFulfilledOrdersToInventory effect as we now derive state directly
 
   // Refresh orderable batches based on warehouse selection
-  useEffect(() => {
-    const refreshBatches = () => {
-      const allBatches = getAllBatches().filter(b => b.qualityGrade !== null && b.status === 'Stored' && b.retailStatus?.saleAllowed);
-      const filtered = selectedWarehouse === 'all' ? allBatches : allBatches.filter(b => b.warehouseId === selectedWarehouse);
-      setOrderableBatches(filtered);
-
-      // Also refresh retailer inventory with FIFO sort
-      syncFulfilledOrdersToInventory(retailerId);
-      const sortedInv = getRetailerInventory(retailerId).sort((a, b) =>
-        new Date(a.retailStatus!.sellByDate).getTime() - new Date(b.retailStatus!.sellByDate).getTime()
-      );
-      setRetailerInventory(sortedInv);
-    };
-
-    refreshBatches();
-    const interval = setInterval(refreshBatches, 2000);
-
-    return () => clearInterval(interval);
-  }, [selectedWarehouse, retailerId]);
+  // Refresh retailer inventory with FIFO sort (Local Storage Sync)
+  // Removed syncFulfilledOrdersToInventory effect as we now derive state directly
 
   useEffect(() => {
     // @ts-ignore
@@ -144,9 +187,9 @@ export default function RetailerDashboard() {
     }
   }, [generatedBill]);
 
-  const handleAddToOrder = () => {
+  const handleAddToOrder = async () => {
     if (!selectedBatch || !orderCrateQuantity) {
-      toast.error('Please select a batch and crate quantity');
+      toast.error('Please select a batch and quantity');
       return;
     }
 
@@ -155,7 +198,8 @@ export default function RetailerDashboard() {
       return;
     }
 
-    const batch = getBatchById(selectedBatch);
+    // Use batches from Firestore hook instead of legacy getBatchById
+    const batch = allBatches.find(b => b.batchId === selectedBatch);
     if (!batch || !batch.qualityGrade || !batch.warehouseId) {
       toast.error('Invalid batch selected');
       return;
@@ -212,11 +256,14 @@ export default function RetailerDashboard() {
       estimatedDelivery: new Date(Date.now() + (stages.length === 1 ? 24 : 48) * 60 * 60 * 1000), // 1-2 days based on stages
     };
 
-    addOrder(order);
-    setOrders([...orders, order]);
-    toast.success(`Order ${order.orderId} placed: ${requestedCrates} crates (≈${quantityKg}kg ${product?.name || ''})`);
-    setSelectedBatch('');
-    setOrderCrateQuantity('');
+    try {
+      await addOrderToFirestore(order);
+      toast.success(`Order ${order.orderId} placed: ${requestedCrates} crates (≈${quantityKg}kg ${product?.name || ''})`);
+      setSelectedBatch('');
+      setOrderCrateQuantity('');
+    } catch (e) {
+      // service handles toast
+    }
   };
 
   const handleAddToBill = () => {
@@ -245,7 +292,8 @@ export default function RetailerDashboard() {
     }
 
     const requestedQty = parseFloat(billQuantity);
-    const availableQty = getRetailerAvailableQuantity(retailerId, retailerBatch.batchId);
+    // Use derived quantity from Firestore state
+    const availableQty = retailerBatch.quantity;
 
     // Check if already in bill items
     const alreadyInBill = billItems.filter(item => item.batchId === retailerBatch.batchId)
@@ -287,7 +335,7 @@ export default function RetailerDashboard() {
     return billItems.reduce((sum, item) => sum + (item.quantity * item.pricePerKg), 0);
   };
 
-  const handleGenerateBill = () => {
+  const handleGenerateBill = async () => {
     if (billItems.length === 0) {
       toast.error('Add items to the bill first');
       return;
@@ -318,23 +366,16 @@ export default function RetailerDashboard() {
       paymentStatus: 'Paid',
     };
 
-    // Reduce retailer inventory for each item
-    billItems.forEach(item => {
-      try {
-        reduceRetailerInventory(retailerId, item.batchId, item.quantity);
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        toast.error(`Error reducing inventory for ${item.productName}: ${message}`);
-      }
-    });
+    // Inventory is automatically updated via useMemo when bills change
 
-    // Refresh retailer inventory after sale
-    setRetailerInventory(getRetailerInventory(retailerId));
-
-    addBill(bill);
-    setGeneratedBill(bill);
-    setBillItems([]);
-    toast.success(`Bill generated with code: ${uniqueCode}`);
+    try {
+      await addBillToFirestore(bill);
+      setGeneratedBill(bill);
+      setBillItems([]);
+      toast.success(`Bill generated with code: ${uniqueCode}`);
+    } catch (e) {
+      // service handles toast
+    }
   };
 
   const handlePrintBill = () => {
@@ -421,18 +462,18 @@ export default function RetailerDashboard() {
   return (
     <Layout>
       <div className="space-y-8 animate-in fade-in duration-700">
-        {/* Enhanced Hero Section */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-8">
+        {/* Hero Section */}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-border p-6 shadow-sm">
           <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-fresh/20 to-transparent rounded-full blur-2xl" />
-          
+
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="h-16 w-16 bg-white/80 dark:bg-black/20 rounded-3xl flex items-center justify-center shadow-xl backdrop-blur-sm">
                 <Store className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                   Retailer Portal
                 </h1>
                 <p className="text-lg text-muted-foreground mt-1">Complete POS & Inventory Management Solution</p>
@@ -473,7 +514,7 @@ export default function RetailerDashboard() {
         </div>
 
         <Tabs defaultValue="billing" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 rounded-xl h-14">
+          <TabsList className="grid w-full grid-cols-2 bg-secondary/50 p-1 rounded-lg h-12">
             <TabsTrigger value="billing" className="gap-2 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm h-12">
               <Receipt className="h-4 w-4" />
               Customer Billing (POS)
@@ -490,7 +531,7 @@ export default function RetailerDashboard() {
               <div className="grid gap-6 lg:grid-cols-3 min-h-[700px]">
                 {/* Left: Product Entry + Customer */}
                 <div className="lg:col-span-2 space-y-6 overflow-y-auto max-h-[700px]">
-                  <Card className="glass-card border border-border/60">
+                  <Card className="bg-card border border-border rounded-lg shadow-sm">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm">Customer Details</CardTitle>
                     </CardHeader>
@@ -502,22 +543,27 @@ export default function RetailerDashboard() {
                             placeholder="Enter phone number"
                             value={customerPhoneInput}
                             onChange={(e) => setCustomerPhoneInput(e.target.value)}
-                            onBlur={() => {
+                            onBlur={async () => {
                               const phone = customerPhoneInput.trim();
                               if (!phone) {
                                 setSelectedCustomer(null);
                                 return;
                               }
-                              const existing = getCustomerByPhone(phone);
-                              if (existing) {
-                                setSelectedCustomer({
-                                  phone: existing.phone,
-                                  memberId: existing.memberId,
-                                  name: existing.name,
-                                });
-                                toast.success(`Member found: ${existing.memberId}`);
-                              } else {
-                                setSelectedCustomer(null);
+                              try {
+                                const { getCustomerByPhoneFromFirestore } = await import('@/lib/services/customerService');
+                                const existing = await getCustomerByPhoneFromFirestore(phone);
+                                if (existing) {
+                                  setSelectedCustomer({
+                                    phone: existing.phone,
+                                    memberId: existing.memberId,
+                                    name: existing.name,
+                                  });
+                                  toast.success(`Member found: ${existing.memberId}`);
+                                } else {
+                                  setSelectedCustomer(null);
+                                }
+                              } catch (e) {
+                                console.error("Error looking up customer", e);
                               }
                             }}
                             className="h-10 text-sm"
@@ -528,19 +574,23 @@ export default function RetailerDashboard() {
                           variant="default"
                           size="default"
                           className="h-10 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md whitespace-nowrap px-4"
-                          onClick={() => {
+                          onClick={async () => {
                             const phone = customerPhoneInput.trim();
                             if (!phone) {
                               toast.error('Enter a phone number first');
                               return;
                             }
-                            const customer = createCustomer({ phone });
-                            setSelectedCustomer({
-                              phone: customer.phone,
-                              memberId: customer.memberId,
-                              name: customer.name,
-                            });
-                            toast.success(`Member created: ${customer.memberId}`);
+                            try {
+                              const { createCustomerInFirestore } = await import('@/lib/services/customerService');
+                              const customer = await createCustomerInFirestore({ phone });
+                              setSelectedCustomer({
+                                phone: customer.phone,
+                                memberId: customer.memberId,
+                                name: customer.name,
+                              });
+                            } catch (e) {
+                              // Service handles toast
+                            }
                           }}
                         >
                           Create Member ID
@@ -563,7 +613,7 @@ export default function RetailerDashboard() {
                       )}
                     </CardContent>
                   </Card>
-                  <Card className="glass-card shadow-lg border-primary/20">
+                  <Card className="bg-card border border-border rounded-lg shadow-sm">
                     <CardHeader className="pb-4">
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Package className="h-5 w-5 text-primary" />
@@ -589,14 +639,14 @@ export default function RetailerDashboard() {
                                 </div>
                               ) : (
                                 retailerInventory
-                                  .filter(b => b.retailStatus?.saleAllowed && getRetailerAvailableQuantity(retailerId, b.batchId) > 0)
+                                  .filter(b => b.retailStatus?.saleAllowed && b.quantity > 0)
                                   .map(batch => {
                                     const product = getProductById(batch.cropType);
-                                    const available = getRetailerAvailableQuantity(retailerId, batch.batchId);
+                                    const available = batch.quantity;
                                     return (
                                       <SelectItem key={batch.batchId} value={batch.batchId}>
                                         <div className="flex items-center gap-2">
-                                          <span className="text-lg">{product?.emoji}</span>
+                                          <ProductIcon productId={batch.cropType} size={18} className="text-primary" />
                                           <span className="font-medium">{product?.name}</span>
                                           <Badge variant="outline" className="ml-2 font-mono text-xs">{batch.batchId}</Badge>
                                           <span className="text-muted-foreground text-xs ml-2">{available.toFixed(1)}kg available</span>
@@ -644,7 +694,7 @@ export default function RetailerDashboard() {
                       // Only show products from retailer's inventory for POS
                       const available = retailerInventory
                         .filter(b => b.cropType === product.id && b.retailStatus?.saleAllowed)
-                        .reduce((sum, b) => sum + getRetailerAvailableQuantity(retailerId, b.batchId), 0);
+                        .reduce((sum, b) => sum + b.quantity, 0);
 
                       return (
                         <button
@@ -655,7 +705,7 @@ export default function RetailerDashboard() {
                           )}
                           onClick={() => toast.info(`Please scan a specific batch of ${product.name}`)}
                         >
-                          <span className="text-2xl">{product.emoji}</span>
+                          <ProductIcon productId={product.id} size={24} className="text-primary" />
                           <span className="font-medium text-sm">{product.name}</span>
                           <span className={cn("text-xs font-bold", available > 0 ? "text-fresh" : "text-destructive")}>
                             {available > 0 ? `${available}kg` : 'Out of Stock'}
@@ -667,7 +717,7 @@ export default function RetailerDashboard() {
                 </div>
 
                 {/* Right: Cart & Totals */}
-                <Card className="flex flex-col h-full max-h-[700px] shadow-xl border-2">
+                <Card className="flex flex-col h-full max-h-[700px] shadow-sm border border-border rounded-lg">
                   <CardHeader className="bg-secondary/30 pb-4 border-b">
                     <CardTitle className="flex justify-between items-center">
                       <span>Current Bill</span>
@@ -735,7 +785,7 @@ export default function RetailerDashboard() {
             ) : (
               /* Generated Bill View */
               <div className="flex justify-center py-8 animate-in zoom-in-95 duration-300">
-                <Card className="w-full max-w-md shadow-2xl border-2">
+                <Card className="w-full max-w-md shadow-md border border-border rounded-xl">
                   <div className="bg-primary h-2 w-full" />
                   <CardHeader className="text-center pb-2">
                     <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2 text-primary">
@@ -892,7 +942,7 @@ export default function RetailerDashboard() {
           {/* Procurement Tab */}
           <TabsContent value="orders" className="space-y-8 animate-in slide-in-from-bottom-2 duration-500">
             <div className="grid gap-6 lg:grid-cols-2 min-h-[600px]">
-              <Card className="glass-card">
+              <Card className="bg-card border border-border rounded-lg shadow-sm">
                 <CardHeader>
                   <CardTitle>Place Warehouse Order</CardTitle>
                   <CardDescription>Select warehouse and order crates</CardDescription>
@@ -937,7 +987,7 @@ export default function RetailerDashboard() {
                             return (
                               <SelectItem key={batch.batchId} value={batch.batchId}>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg">{product?.emoji}</span>
+                                  <ProductIcon productId={batch.cropType} size={18} className="text-primary" />
                                   <span className="font-medium">{product?.name}</span>
                                   <Badge variant="outline" className="ml-2 font-mono text-xs">{batch.batchId}</Badge>
                                   <span className="text-muted-foreground text-xs ml-2">Grade {batch.qualityGrade} • {availableCrates} crates (≈{availableKg.toFixed(1)}kg)</span>

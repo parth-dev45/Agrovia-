@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Leaf,
   Warehouse,
@@ -8,280 +8,267 @@ import {
   Menu,
   X,
   User,
-  FileText,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
-  Bell
+  Search,
+  Settings,
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationCenter } from '@/components/NotificationCenter';
+import { SettingsDialog } from '@/components/SettingsDialog';
+import { HelpDialog } from '@/components/HelpDialog';
+import { PrivacyLink, TermsLink, HelpLink } from '@/components/LegalDialogs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { useAuth } from '@/components/AuthProvider';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const navItems = [
-  { path: '/dashboard', label: 'Overview', icon: BarChart3, description: 'Dashboard & Analytics' },
-  { path: '/farmer', label: 'Farmer', icon: Leaf, description: 'Intake & Processing' },
-  { path: '/grading', label: 'Quality', icon: ClipboardCheck, description: 'Quality Control' },
-  { path: '/warehouse', label: 'Warehouse', icon: Warehouse, description: 'Inventory Management' },
-  { path: '/retailer', label: 'Retailer', icon: Store, description: 'Retail Operations' },
-  { path: '/customer', label: 'Traceability', icon: User, description: 'Customer & Tracking' },
-  { path: '/reports', label: 'Reports', icon: FileText, description: 'Analytics & Reports' },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, description: 'Overview & Analytics', roles: ['super_admin'] }, // Hidden for now
+  { path: '/farmer', label: 'Product Management', icon: Leaf, description: 'Intake & Processing', roles: ['admin'] },
+  { path: '/grading', label: 'Quality Reports', icon: ClipboardCheck, description: 'Quality Control', roles: ['admin'] },
+  { path: '/warehouse', label: 'Warehouse Inventory', icon: Warehouse, description: 'Inventory Management', roles: ['admin'] },
+  { path: '/retailer', label: 'Retailer', icon: Store, description: 'Retail Operations', roles: ['retailer'] },
+  { path: '/customer', label: 'Traceability', icon: User, description: 'Customer & Tracking', roles: ['customer'] },
+  { path: '/reports', label: 'Analytics', icon: BarChart3, description: 'Reports', roles: ['super_admin'] }, // Hidden for now
 ];
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, logout } = useAuth();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [navCollapsed, setNavCollapsed] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Handle scroll effect for navbar
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Close mobile menu on route change
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
+  // Filter navigation items based on user role
+  const userRole = profile?.role || 'customer';
+  const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
+
   return (
-    <div className="min-h-screen bg-background relative">
-      {/* Enhanced Floating Navbar */}
-      <div className={cn(
-        "fixed top-0 left-0 right-0 z-50 px-4 flex justify-center pointer-events-none transition-all duration-500 ease-out",
-        scrolled ? "top-2" : "top-6",
-        navCollapsed && "-translate-y-20 opacity-0"
-      )}>
-        <header className={cn(
-          "w-full max-w-7xl rounded-2xl glass-strong px-6 py-4 flex items-center justify-between pointer-events-auto transition-all duration-500 ease-out shadow-xl",
-          scrolled && "py-3 shadow-2xl backdrop-blur-xl",
-          navCollapsed && "max-w-fit px-4"
-        )}>
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 group-hover:shadow-primary/40">
-              <Leaf className="h-6 w-6 text-white" />
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar - Desktop */}
+      <aside
+        className={cn(
+          'hidden lg:flex flex-col fixed left-0 top-0 z-40 h-full bg-card border-r border-border transition-all duration-200 ease-in-out',
+          sidebarCollapsed ? 'w-[4.5rem]' : 'w-64'
+        )}
+      >
+        <div className="flex h-14 items-center border-b border-border px-3 gap-2">
+          <Link to="/" className="flex items-center gap-2 min-w-0">
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-primary flex items-center justify-center">
+              <Leaf className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div className={cn(
-              "overflow-hidden transition-all duration-500 ease-out",
-              navCollapsed ? "max-w-0 opacity-0" : "max-w-xs opacity-100"
-            )}>
-              <span className="text-xl font-bold tracking-tight text-gradient whitespace-nowrap">
-                AgroVia
-              </span>
-              <div className="text-xs text-muted-foreground font-medium">
-                Supply Chain Platform
-              </div>
-            </div>
+            {!sidebarCollapsed && (
+              <span className="font-semibold text-foreground truncate">AgroVia</span>
+            )}
           </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="ml-auto shrink-0 h-8 w-8"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        </div>
 
-          {/* Desktop Navigation */}
-          <nav className={cn(
-            "hidden lg:flex items-center gap-1 overflow-hidden transition-all duration-500 ease-out",
-            navCollapsed ? "max-w-0 opacity-0" : "max-w-[900px] opacity-100"
-          )}>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    'group relative px-4 py-3 text-sm font-medium rounded-xl transition-all duration-300 whitespace-nowrap',
-                    isActive
-                      ? 'text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                  )}
-                  title={item.description}
-                >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-primary/90 rounded-xl shadow-lg shadow-primary/25 transition-all duration-300" />
-                  )}
-                  <span className="relative flex items-center gap-2">
-                    <Icon className={cn(
-                      "h-4 w-4 transition-all duration-300",
-                      isActive ? "text-white" : "group-hover:scale-110"
-                    )} />
-                    <span className="hidden xl:inline">{item.label}</span>
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            {/* Notifications */}
-            <div className={cn(
-              "overflow-hidden transition-all duration-500 ease-out",
-              navCollapsed ? "max-w-0 opacity-0" : "max-w-[100px] opacity-100"
-            )}>
-              <NotificationCenter />
-            </div>
-
-            {/* Help Button */}
-            <div className={cn(
-              "overflow-hidden transition-all duration-500 ease-out",
-              navCollapsed ? "max-w-0 opacity-0" : "max-w-[100px] opacity-100"
-            )}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-xl hover:bg-secondary/50 transition-all duration-300 hover:scale-110"
-                title="Help & Support"
+        <nav className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {filteredNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                )}
+                title={sidebarCollapsed ? item.label : undefined}
               >
-                <HelpCircle className="h-5 w-5" />
-              </Button>
-            </div>
+                <Icon className="h-5 w-5 shrink-0" />
+                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
 
-            {/* Theme Toggle */}
-            <div className={cn(
-              "overflow-hidden transition-all duration-500 ease-out",
-              navCollapsed ? "max-w-0 opacity-0" : "max-w-[100px] opacity-100"
-            )}>
-              <ThemeToggle />
-            </div>
-
-            {/* Collapse/Expand Button - Desktop */}
+        <div className="border-t border-border p-2 space-y-0.5">
+          <SettingsDialog>
             <Button
               variant="ghost"
-              size="icon"
-              className="hidden lg:flex rounded-xl hover:bg-secondary/50 transition-all duration-300 hover:scale-110"
-              onClick={() => setNavCollapsed(!navCollapsed)}
-              title={navCollapsed ? "Expand Menu" : "Collapse Menu"}
-            >
-              {navCollapsed ? (
-                <ChevronRight className="h-5 w-5 transition-transform duration-300" />
-              ) : (
-                <ChevronLeft className="h-5 w-5 transition-transform duration-300" />
+              className={cn(
+                'w-full flex items-center gap-3 justify-start px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground h-auto',
+                sidebarCollapsed && 'justify-center px-2'
               )}
-            </Button>
-
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden rounded-xl hover:bg-secondary/50 transition-all duration-300"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              title={sidebarCollapsed ? 'Settings' : undefined}
             >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              <Settings className="h-5 w-5 shrink-0" />
+              {!sidebarCollapsed && <span>Settings</span>}
             </Button>
+          </SettingsDialog>
+          <HelpDialog>
+            <Link
+              to="#"
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground',
+                sidebarCollapsed && 'justify-center'
+              )}
+              title={sidebarCollapsed ? 'Help' : undefined}
+            >
+              <HelpCircle className="h-5 w-5 shrink-0" />
+              {!sidebarCollapsed && <span>Help & Support</span>}
+            </Link>
+          </HelpDialog>
+        </div>
+      </aside>
+
+      {/* Main area */}
+      <div className={cn('flex-1 flex flex-col min-w-0', sidebarCollapsed ? 'lg:pl-[4.5rem]' : 'lg:pl-64')}>
+        {/* Fixed Header */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+
+          {/* Global search */}
+          <div className="flex-1 hidden sm:block">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products, batches, orders..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 rounded-lg bg-secondary/50 border-0 text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <NotificationCenter />
+            <ThemeToggle />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.photoURL || ''} alt={profile?.displayName} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                      {profile?.displayName?.slice(0, 2).toUpperCase() || 'US'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <div className="px-2 py-1.5 text-sm">
+                  <div className="font-medium">{profile?.displayName || 'User'}</div>
+                  <div className="text-xs text-muted-foreground capitalize">{profile?.role || 'Guest'}</div>
+                </div>
+                <DropdownMenuSeparator />
+                {profile?.role === 'admin' && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard">Dashboard</Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => logout()} className="text-red-600 focus:text-red-600">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
+
+        {/* Page content */}
+        <main className="flex-1 p-4 sm:p-6">
+          {children}
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-border bg-secondary/30 py-6 px-4 sm:px-6">
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Leaf className="h-4 w-4 text-primary" />
+              <span className="font-medium text-foreground">AgroVia</span>
+              <span>Supply Chain Platform</span>
+            </div>
+            <div className="flex gap-6">
+              <PrivacyLink className="hover:text-primary transition-colors cursor-pointer" />
+              <TermsLink className="hover:text-primary transition-colors cursor-pointer" />
+              <HelpLink className="hover:text-primary transition-colors cursor-pointer" />
+            </div>
+          </div>
+        </footer>
       </div>
 
-      {/* Show Navbar Button - appears when navbar is collapsed */}
-      {navCollapsed && (
-        <Button
-          variant="gradient"
-          size="sm"
-          className="fixed top-4 right-4 z-50 rounded-xl shadow-xl animate-fade-in-down"
-          onClick={() => setNavCollapsed(false)}
-        >
-          <Menu className="h-4 w-4 mr-2" />
-          Show Menu
-        </Button>
-      )}
-
-      {/* Enhanced Mobile Navigation Menu */}
+      {/* Mobile menu overlay */}
       {mobileMenuOpen && (
         <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden animate-fade-in"
+          <div
+            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden"
             onClick={() => setMobileMenuOpen(false)}
+            aria-hidden
           />
-          
-          {/* Menu */}
-          <div className="fixed top-24 left-4 right-4 z-50 lg:hidden animate-fade-in-up max-h-[calc(100vh-8rem)] overflow-y-auto">
-            <nav className="glass-strong rounded-3xl p-6 shadow-2xl">
-              <div className="flex flex-col gap-2">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.path;
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={cn(
-                        'group flex items-center gap-4 px-4 py-4 text-base font-medium rounded-2xl transition-all duration-300 active:scale-95',
-                        isActive
-                          ? 'bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg shadow-primary/25'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                      )}
-                    >
-                      <div className={cn(
-                        "p-2 rounded-xl transition-all duration-300",
-                        isActive 
-                          ? "bg-white/20" 
-                          : "bg-secondary group-hover:bg-secondary/80"
-                      )}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-semibold">{item.label}</div>
-                        <div className={cn(
-                          "text-xs font-medium",
-                          isActive ? "text-primary-foreground/80" : "text-muted-foreground"
-                        )}>
-                          {item.description}
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
+          <div className="fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border lg:hidden animate-in slide-in-left duration-200">
+            <div className="flex h-14 items-center justify-between border-b border-border px-4">
+              <span className="font-semibold">Menu</span>
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <nav className="p-4 space-y-1">
+              {filteredNavItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
+                      isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                    )}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
         </>
       )}
-
-      {/* Main Content with Enhanced Spacing */}
-      <main className={cn(
-        "relative z-10 container max-w-7xl animate-fade-in-up min-h-screen px-4 sm:px-6",
-        scrolled ? "pt-28 pb-16" : "pt-36 pb-16"
-      )}>
-        {children}
-      </main>
-
-      {/* Enhanced Footer */}
-      <footer className="border-t border-border/50 bg-secondary/20 backdrop-blur-sm py-12 mt-20">
-        <div className="container mx-auto px-6 max-w-7xl">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 bg-primary/10 rounded-xl flex items-center justify-center">
-                <Leaf className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="font-bold text-foreground">AgroVia</div>
-                <div className="text-xs text-muted-foreground">Supply Chain Platform</div>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-primary transition-colors">Support</a>
-            </div>
-            
-            <div className="text-sm text-muted-foreground">
-              &copy; 2026 AgroVia Inc. All rights reserved.
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

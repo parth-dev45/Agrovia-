@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const cardVariants = cva(
-  "rounded-xl border bg-card text-card-foreground shadow-sm transition-all duration-300",
+  "rounded-md border bg-card text-card-foreground shadow-sm transition-all duration-200",
   {
     variants: {
       variant: {
@@ -26,10 +26,10 @@ const cardVariants = cva(
         xl: "p-10",
       },
       rounded: {
-        default: "rounded-xl",
-        sm: "rounded-lg",
-        lg: "rounded-2xl",
-        xl: "rounded-3xl",
+        default: "rounded-md",
+        sm: "rounded-sm",
+        lg: "rounded-lg",
+        xl: "rounded-xl",
         full: "rounded-full",
       }
     },

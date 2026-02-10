@@ -7,121 +7,42 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
-interface Notification {
-  id: string;
-  type: 'info' | 'warning' | 'error' | 'success';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  title: string;
-  message: string;
-  timestamp: Date;
-  read: boolean;
-  actions?: {
-    label: string;
-    action: () => void;
-    variant?: 'default' | 'destructive' | 'outline';
-  }[];
-}
-
-// Mock notifications - in real app, this would come from a store/API
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'warning',
-    priority: 'high',
-    title: 'Batch Expiring Soon',
-    message: 'Batch B001 (Tomatoes) expires in 2 days. Consider priority sale.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-    read: false,
-    actions: [
-      { label: 'View Batch', action: () => console.log('View batch'), variant: 'default' },
-      { label: 'Mark Priority', action: () => console.log('Mark priority'), variant: 'outline' }
-    ]
-  },
-  {
-    id: '2',
-    type: 'success',
-    priority: 'medium',
-    title: 'Quality Test Complete',
-    message: 'Batch B002 (Carrots) received Grade A certification.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    read: false,
-    actions: [
-      { label: 'View Results', action: () => console.log('View results') }
-    ]
-  },
-  {
-    id: '3',
-    type: 'info',
-    priority: 'low',
-    title: 'New Farmer Registered',
-    message: 'John Smith has been added to the farmer database.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-    read: true
-  },
-  {
-    id: '4',
-    type: 'error',
-    priority: 'urgent',
-    title: 'Storage Temperature Alert',
-    message: 'Cold storage unit 2 temperature exceeded threshold. Immediate action required.',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
-    read: false,
-    actions: [
-      { label: 'Check Unit', action: () => console.log('Check unit'), variant: 'destructive' },
-      { label: 'Call Maintenance', action: () => console.log('Call maintenance'), variant: 'outline' }
-    ]
-  }
-];
-
-const typeIcons = {
-  info: Info,
-  warning: AlertTriangle,
-  error: AlertTriangle,
-  success: CheckCircle2
-};
-
-const typeColors = {
-  info: 'text-blue-500',
-  warning: 'text-warning',
-  error: 'text-destructive',
-  success: 'text-fresh'
-};
-
-const priorityColors = {
-  low: 'bg-muted',
-  medium: 'bg-blue-500',
-  high: 'bg-warning',
-  urgent: 'bg-destructive'
-};
+import {
+  useNotifications,
+  markNotificationAsRead,
+  AppNotification
+} from '@/lib/services/notificationService';
+import { useAuth } from '@/components/AuthProvider';
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { profile } = useAuth();
+  const { notifications } = useNotifications(profile?.role || 'all');
   const [filter, setFilter] = useState<'all' | 'unread' | 'urgent'>('all');
   const [isOpen, setIsOpen] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const urgentCount = notifications.filter(n => n.priority === 'urgent').length;
+  const urgentCount = notifications.filter(n => n.priority === 'urgent' && !n.read).length;
 
-  // Simulate real-time notifications
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate new notifications occasionally
-      if (Math.random() < 0.1) { // 10% chance every 30 seconds
-        const newNotification: Notification = {
-          id: Date.now().toString(),
-          type: Math.random() > 0.7 ? 'warning' : 'info',
-          priority: Math.random() > 0.8 ? 'high' : 'medium',
-          title: 'New Update',
-          message: 'A new event has occurred in the system.',
-          timestamp: new Date(),
-          read: false
-        };
-        setNotifications(prev => [newNotification, ...prev]);
-      }
-    }, 30000); // Check every 30 seconds
+  const typeIcons = {
+    info: Info,
+    warning: AlertTriangle,
+    error: AlertTriangle,
+    success: CheckCircle2
+  };
 
-    return () => clearInterval(interval);
-  }, []);
+  const typeColors = {
+    info: 'text-blue-500',
+    warning: 'text-warning',
+    error: 'text-destructive',
+    success: 'text-fresh'
+  };
+
+  const priorityColors = {
+    low: 'bg-muted',
+    medium: 'bg-blue-500',
+    high: 'bg-warning',
+    urgent: 'bg-destructive'
+  };
 
   const filteredNotifications = notifications.filter(notification => {
     switch (filter) {
@@ -135,28 +56,32 @@ export function NotificationCenter() {
   });
 
   const markAsRead = useCallback((id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
+    markNotificationAsRead(id);
   }, []);
 
   const markAllAsRead = useCallback(() => {
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, read: true }))
-    );
-  }, []);
-
-  const dismissNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  }, []);
+    notifications.forEach(n => {
+      if (!n.read) markNotificationAsRead(n.id);
+    });
+  }, [notifications]);
 
   const clearAllNotifications = useCallback(() => {
-    setNotifications([]);
-  }, []);
+    // Not implemented in service for safety, but UI needs handle
+    // Maybe just mark all as read?
+    notifications.forEach(n => {
+      if (!n.read) markNotificationAsRead(n.id);
+    });
+  }, [notifications]);
 
-  const formatTimestamp = (timestamp: Date) => {
+  // Removed Local Dismiss/Clear for now as it affects shared DB state in this simple demo
+  // const dismissNotification = ... 
+
+  const formatTimestamp = (timestamp: Date | string) => {
+    const date = typeof timestamp === 'string' || typeof timestamp === 'number' ? new Date(timestamp) : timestamp;
+    if (!(date instanceof Date) || isNaN(date.getTime())) return 'Recently';
+
     const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
+    const diff = now.getTime() - date.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -173,8 +98,8 @@ export function NotificationCenter() {
         <Button variant="ghost" size="icon" className="relative rounded-xl">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
+            <Badge
+              variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs animate-pulse"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
@@ -238,9 +163,9 @@ export function NotificationCenter() {
                 <div className="p-8 text-center text-muted-foreground">
                   <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-sm">
-                    {filter === 'all' ? 'No notifications to show' : 
-                     filter === 'unread' ? 'No unread notifications' : 
-                     'No urgent notifications'}
+                    {filter === 'all' ? 'No notifications to show' :
+                      filter === 'unread' ? 'No unread notifications' :
+                        'No urgent notifications'}
                   </p>
                 </div>
               ) : (
@@ -251,13 +176,15 @@ export function NotificationCenter() {
                       const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
                       const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
                       if (priorityDiff !== 0) return priorityDiff;
-                      return b.timestamp.getTime() - a.timestamp.getTime();
+                      const timeA = typeof a.timestamp === 'string' ? new Date(a.timestamp).getTime() : a.timestamp.getTime();
+                      const timeB = typeof b.timestamp === 'string' ? new Date(b.timestamp).getTime() : b.timestamp.getTime();
+                      return timeB - timeA;
                     })
                     .map((notification) => {
                       const Icon = typeIcons[notification.type];
                       return (
-                        <Card 
-                          key={notification.id} 
+                        <Card
+                          key={notification.id}
                           className={cn(
                             "cursor-pointer transition-all hover:shadow-md border-0 bg-secondary/20",
                             !notification.read && "bg-primary/5 border-l-4 border-l-primary",
@@ -279,24 +206,13 @@ export function NotificationCenter() {
                                     {notification.title}
                                   </p>
                                   <div className="flex items-center gap-2">
-                                    <div 
+                                    <div
                                       className={cn(
                                         "w-2 h-2 rounded-full",
                                         priorityColors[notification.priority]
                                       )}
                                       title={`${notification.priority} priority`}
                                     />
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 opacity-50 hover:opacity-100"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        dismissNotification(notification.id);
-                                      }}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
                                   </div>
                                 </div>
                                 <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
@@ -307,25 +223,6 @@ export function NotificationCenter() {
                                     <Clock className="h-3 w-3" />
                                     {formatTimestamp(notification.timestamp)}
                                   </div>
-                                  {notification.actions && (
-                                    <div className="flex gap-1">
-                                      {notification.actions.map((action, index) => (
-                                        <Button
-                                          key={index}
-                                          variant={action.variant || 'outline'}
-                                          size="sm"
-                                          className="h-6 px-2 text-xs"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            action.action();
-                                            markAsRead(notification.id);
-                                          }}
-                                        >
-                                          {action.label}
-                                        </Button>
-                                      ))}
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </div>

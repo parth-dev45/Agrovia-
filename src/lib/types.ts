@@ -3,55 +3,54 @@ export type StorageType = 'Normal' | 'Cold';
 export type FreshnessStatus = 'Fresh' | 'Consume Soon' | 'Expired';
 export type Firmness = 'Low' | 'Medium' | 'High';
 
-// Product types with emoji and details
+// Product types with icon mapping
 export interface ProductType {
   id: string;
   name: string;
-  emoji: string;
   category: 'Vegetable' | 'Fruit' | 'Leafy Green' | 'Root Vegetable';
   unit: string;
 }
 
 export const PRODUCTS: ProductType[] = [
   // Default vegetables for MVP (must appear first)
-  { id: 'potato', name: 'Potato', emoji: '🥔', category: 'Root Vegetable', unit: 'kg' },
-  { id: 'onion', name: 'Onion', emoji: '🧅', category: 'Vegetable', unit: 'kg' },
-  { id: 'tomato', name: 'Tomato', emoji: '🍅', category: 'Vegetable', unit: 'kg' },
-  { id: 'cabbage', name: 'Cabbage', emoji: '🥬', category: 'Leafy Green', unit: 'kg' },
+  { id: 'potato', name: 'Potato', category: 'Root Vegetable', unit: 'kg' },
+  { id: 'onion', name: 'Onion', category: 'Vegetable', unit: 'kg' },
+  { id: 'tomato', name: 'Tomato', category: 'Vegetable', unit: 'kg' },
+  { id: 'cabbage', name: 'Cabbage', category: 'Leafy Green', unit: 'kg' },
   // Additional vegetables
-  { id: 'carrot', name: 'Carrot', emoji: '🥕', category: 'Root Vegetable', unit: 'kg' },
-  { id: 'spinach', name: 'Spinach', emoji: '🥬', category: 'Leafy Green', unit: 'kg' },
-  { id: 'broccoli', name: 'Broccoli', emoji: '🥦', category: 'Vegetable', unit: 'kg' },
-  { id: 'cauliflower', name: 'Cauliflower', emoji: '🥦', category: 'Vegetable', unit: 'kg' },
-  { id: 'capsicum', name: 'Capsicum', emoji: '🫑', category: 'Vegetable', unit: 'kg' },
-  { id: 'cucumber', name: 'Cucumber', emoji: '🥒', category: 'Vegetable', unit: 'kg' },
-  { id: 'eggplant', name: 'Eggplant', emoji: '🍆', category: 'Vegetable', unit: 'kg' },
-  { id: 'lettuce', name: 'Lettuce', emoji: '🥬', category: 'Leafy Green', unit: 'kg' },
-  { id: 'pumpkin', name: 'Pumpkin', emoji: '🎃', category: 'Vegetable', unit: 'kg' },
-  { id: 'beetroot', name: 'Beetroot', emoji: '🥕', category: 'Root Vegetable', unit: 'kg' },
-  { id: 'radish', name: 'Radish', emoji: '🥕', category: 'Root Vegetable', unit: 'kg' },
-  { id: 'ginger', name: 'Ginger', emoji: '🫚', category: 'Root Vegetable', unit: 'kg' },
-  { id: 'garlic', name: 'Garlic', emoji: '🧄', category: 'Vegetable', unit: 'kg' },
-  { id: 'corn', name: 'Corn', emoji: '🌽', category: 'Vegetable', unit: 'kg' },
-  { id: 'peas', name: 'Peas', emoji: '🫛', category: 'Vegetable', unit: 'kg' },
-  { id: 'beans', name: 'Beans', emoji: '🫘', category: 'Vegetable', unit: 'kg' },
-  { id: 'okra', name: 'Okra (Bhindi)', emoji: '🫛', category: 'Vegetable', unit: 'kg' },
-  { id: 'chili', name: 'Green Chili', emoji: '🌶️', category: 'Vegetable', unit: 'kg' },
-  { id: 'coriander', name: 'Coriander', emoji: '🌿', category: 'Leafy Green', unit: 'kg' },
-  { id: 'mint', name: 'Mint', emoji: '🌿', category: 'Leafy Green', unit: 'kg' },
+  { id: 'carrot', name: 'Carrot', category: 'Root Vegetable', unit: 'kg' },
+  { id: 'spinach', name: 'Spinach', category: 'Leafy Green', unit: 'kg' },
+  { id: 'broccoli', name: 'Broccoli', category: 'Vegetable', unit: 'kg' },
+  { id: 'cauliflower', name: 'Cauliflower', category: 'Vegetable', unit: 'kg' },
+  { id: 'capsicum', name: 'Capsicum', category: 'Vegetable', unit: 'kg' },
+  { id: 'cucumber', name: 'Cucumber', category: 'Vegetable', unit: 'kg' },
+  { id: 'eggplant', name: 'Eggplant', category: 'Vegetable', unit: 'kg' },
+  { id: 'lettuce', name: 'Lettuce', category: 'Leafy Green', unit: 'kg' },
+  { id: 'pumpkin', name: 'Pumpkin', category: 'Vegetable', unit: 'kg' },
+  { id: 'beetroot', name: 'Beetroot', category: 'Root Vegetable', unit: 'kg' },
+  { id: 'radish', name: 'Radish', category: 'Root Vegetable', unit: 'kg' },
+  { id: 'ginger', name: 'Ginger', category: 'Root Vegetable', unit: 'kg' },
+  { id: 'garlic', name: 'Garlic', category: 'Vegetable', unit: 'kg' },
+  { id: 'corn', name: 'Corn', category: 'Vegetable', unit: 'kg' },
+  { id: 'peas', name: 'Peas', category: 'Vegetable', unit: 'kg' },
+  { id: 'beans', name: 'Beans', category: 'Vegetable', unit: 'kg' },
+  { id: 'okra', name: 'Okra (Bhindi)', category: 'Vegetable', unit: 'kg' },
+  { id: 'chili', name: 'Green Chili', category: 'Vegetable', unit: 'kg' },
+  { id: 'coriander', name: 'Coriander', category: 'Leafy Green', unit: 'kg' },
+  { id: 'mint', name: 'Mint', category: 'Leafy Green', unit: 'kg' },
   // Fruits
-  { id: 'apple', name: 'Apple', emoji: '🍎', category: 'Fruit', unit: 'kg' },
-  { id: 'banana', name: 'Banana', emoji: '🍌', category: 'Fruit', unit: 'dozen' },
-  { id: 'orange', name: 'Orange', emoji: '🍊', category: 'Fruit', unit: 'kg' },
-  { id: 'mango', name: 'Mango', emoji: '🥭', category: 'Fruit', unit: 'kg' },
-  { id: 'grapes', name: 'Grapes', emoji: '🍇', category: 'Fruit', unit: 'kg' },
-  { id: 'watermelon', name: 'Watermelon', emoji: '🍉', category: 'Fruit', unit: 'piece' },
-  { id: 'strawberry', name: 'Strawberry', emoji: '🍓', category: 'Fruit', unit: 'kg' },
-  { id: 'pineapple', name: 'Pineapple', emoji: '🍍', category: 'Fruit', unit: 'piece' },
-  { id: 'papaya', name: 'Papaya', emoji: '🍈', category: 'Fruit', unit: 'kg' },
-  { id: 'pomegranate', name: 'Pomegranate', emoji: '🍎', category: 'Fruit', unit: 'kg' },
-  { id: 'guava', name: 'Guava', emoji: '🍐', category: 'Fruit', unit: 'kg' },
-  { id: 'lemon', name: 'Lemon', emoji: '🍋', category: 'Fruit', unit: 'kg' },
+  { id: 'apple', name: 'Apple', category: 'Fruit', unit: 'kg' },
+  { id: 'banana', name: 'Banana', category: 'Fruit', unit: 'dozen' },
+  { id: 'orange', name: 'Orange', category: 'Fruit', unit: 'kg' },
+  { id: 'mango', name: 'Mango', category: 'Fruit', unit: 'kg' },
+  { id: 'grapes', name: 'Grapes', category: 'Fruit', unit: 'kg' },
+  { id: 'watermelon', name: 'Watermelon', category: 'Fruit', unit: 'piece' },
+  { id: 'strawberry', name: 'Strawberry', category: 'Fruit', unit: 'kg' },
+  { id: 'pineapple', name: 'Pineapple', category: 'Fruit', unit: 'piece' },
+  { id: 'papaya', name: 'Papaya', category: 'Fruit', unit: 'kg' },
+  { id: 'pomegranate', name: 'Pomegranate', category: 'Fruit', unit: 'kg' },
+  { id: 'guava', name: 'Guava', category: 'Fruit', unit: 'kg' },
+  { id: 'lemon', name: 'Lemon', category: 'Fruit', unit: 'kg' },
 ];
 
 export const getProductById = (id: string): ProductType | undefined =>
@@ -148,7 +147,7 @@ export interface Batch {
   qualityGrade: QualityGrade | null;
   createdAt: Date;
   warehouseId?: WarehouseId; // Warehouse where batch is stored
-  crateCount?: number; // Number of crates
+  crateCount: number; // Number of crates (required)
   status?: BatchStatus; // Status progression
 }
 

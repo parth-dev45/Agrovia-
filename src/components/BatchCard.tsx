@@ -43,7 +43,7 @@ export function BatchCard({ batch, showQR = false, showDetails = true }: BatchCa
           <div className="flex items-center justify-between">
             <StatusBadge status={batch.retailStatus.status} />
             <span className="text-sm text-muted-foreground">
-              {batch.retailStatus.remainingDays > 0 
+              {batch.retailStatus.remainingDays > 0
                 ? `${batch.retailStatus.remainingDays} days left`
                 : 'Expired'}
             </span>
@@ -77,12 +77,18 @@ export function BatchCard({ batch, showQR = false, showDetails = true }: BatchCa
 
         {showQR && batch.qrMapping && (
           <div className="flex flex-col items-center gap-3 pt-4 border-t border-border">
-            <QRCodeSVG 
+            <QRCodeSVG
               value={`${window.location.origin}/scan/${batch.batchId}`}
               size={120}
               level="M"
               includeMargin
               className="rounded-lg"
+              imageSettings={{
+                src: "/logo.png",
+                height: 24,
+                width: 24,
+                excavate: true,
+              }}
             />
             <Link to={`/scan/${batch.batchId}`}>
               <Button variant="outline" size="sm">

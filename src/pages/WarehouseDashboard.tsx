@@ -5,21 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { QRScanner } from '@/components/QRScanner';
-import { getAllBatches, getBatchById } from '@/lib/mockData';
+import { getBatchById } from '@/lib/mockData';
+import { useBatches, updateBatchStatusInFirestore } from '@/lib/services/batchService';
+import { useOrders, useCrates, addCrateToFirestore, updateOrderStatusInFirestore, fulfillOrderTransaction } from '@/lib/services/orderService';
 import {
   Crate,
   Order,
-  getAllCrates,
-  getAllOrders,
-  addCrate,
-  updateOrderStatus,
-  generateCrateId,
-  updateOrder
+  generateCrateId
 } from '@/lib/orderData';
 import { StatusBadge } from '@/components/StatusBadge';
 import { getProductById, WAREHOUSES, WarehouseId, convertCratesToKg, getCrateCapacity, getProductPrice, QualityGrade } from '@/lib/types';
 import { getWarehouseInventory, getWarehouseCapacity, getAllWarehouses } from '@/lib/warehouseData';
-import { addRetailerInventory } from '@/lib/retailerInventory';
+
 import { Badge } from '@/components/ui/badge';
 import { PrintLabel } from '@/components/PrintLabel';
 import { exportBatchesToCSV } from '@/lib/exportData';
@@ -48,6 +45,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ProductIcon } from '@/components/ProductIcon';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -59,51 +57,64 @@ import { useInventoryStore } from '@/lib/store';
 import { getRetailerStoreById, pickDefaultAssignment, DEFAULT_DRIVER_ASSIGNMENTS } from '@/lib/retailers';
 import { getWarehouseInsights } from '@/lib/warehouseAi';
 
+// Safe date formatting helper
+const safeDateFormat = (date: any, formatStr: string) => {
+  try {
+    if (!date) return 'N/A';
+    const d = date instanceof Date ? date : new Date(date);
+    if (isNaN(d.getTime())) return 'Invalid Date';
+    return format(d, formatStr);
+  } catch (e) {
+    return 'Error';
+  }
+};
+
 export default function WarehouseDashboard() {
   // Removed globalInventory and conflicting state to unify on mockData source
   const [filterWarehouseId, setFilterWarehouseId] = useState<WarehouseId | 'all'>('all');
 
-  // Show all batches in warehouse (including Test Pending - they're in warehouse but awaiting quality test)
-  const [batches, setBatches] = useState(() => getAllBatches().filter(b => {
-    if (!b.warehouseId) return false;
-    // Include batches that are in warehouse regardless of status
-    return b.status === 'Test Pending' || b.status === 'Tested' || b.status === 'Stored';
-  }));
+  // Firestore Integration
+  const { batches: allBatches, loading: batchesLoading } = useBatches();
+  const { orders: allOrders, loading: ordersLoading } = useOrders();
+  const { crates: allCrates, loading: cratesLoading } = useCrates();
+
+  // Filter batches for warehouse logic
+  const batches = useMemo(() => {
+    return allBatches.filter(b => {
+      if (!b.warehouseId) return false;
+      // Include batches that are in warehouse regardless of status
+      if (b.status !== 'Test Pending' && b.status !== 'Tested' && b.status !== 'Stored') return false;
+      if (filterWarehouseId !== 'all' && b.warehouseId !== filterWarehouseId) return false;
+      return true;
+    });
+  }, [allBatches, filterWarehouseId]);
+
+  // Filter orders for warehouse
+  const orders = useMemo(() => {
+    return allOrders.filter(o =>
+      filterWarehouseId === 'all' ||
+      o.sourceWarehouseId === filterWarehouseId ||
+      // Also show orders that might be assigned to this warehouse via batch location if explicit source not set?
+      // For now, strict filtering if sourceWarehouseId is present, or show all if we want visibility.
+      // Let's stick to showing all relevant orders.
+      true
+    );
+  }, [allOrders, filterWarehouseId]);
+
+  // Filter crates for warehouse
+  const crates = useMemo(() => {
+    return allCrates.filter(c => filterWarehouseId === 'all' || c.warehouseId === filterWarehouseId);
+  }, [allCrates, filterWarehouseId]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [scanInput, setScanInput] = useState('');
   const [selectedBatch, setSelectedBatch] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'Fresh' | 'Consume Soon' | 'Expired'>('all');
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
-  const [orders, setOrders] = useState<Order[]>(getAllOrders());
-  const [crates, setCrates] = useState<Crate[]>(getAllCrates());
 
   // Create crate form
   const [crateBatchId, setCrateBatchId] = useState('');
   const [crateQuantity, setCrateQuantity] = useState('');
-
-  // Refresh batches and crates when component updates
-  useEffect(() => {
-    const refreshData = () => {
-      const updatedBatches = getAllBatches().filter(b => {
-        if (!b.warehouseId) return false; // Must have warehouse
-        // Include all batches in warehouse (Test Pending, Tested, Stored)
-        if (b.status !== 'Test Pending' && b.status !== 'Tested' && b.status !== 'Stored') return false;
-        if (filterWarehouseId !== 'all' && b.warehouseId !== filterWarehouseId) return false;
-        return true;
-      });
-      setBatches(updatedBatches);
-      // Also refresh selected batch if it exists
-      if (selectedBatch) {
-        const updated = updatedBatches.find(b => b.batchId === selectedBatch);
-        if (!updated) setSelectedBatch(null);
-      }
-      setCrates(getAllCrates());
-      setOrders(getAllOrders());
-    };
-    refreshData();
-    const interval = setInterval(refreshData, 2000);
-    return () => clearInterval(interval);
-  }, [filterWarehouseId]);
 
   // IoT Map State
   const [selectedTruck, setSelectedTruck] = useState<number | null>(null);
@@ -175,7 +186,7 @@ export default function WarehouseDashboard() {
     { val: 4.0 }, { val: 4.2 }, { val: 3.9 }, { val: 4.1 }, { val: 4.3 }, { val: 4.2 }, { val: 4.0 }, { val: 4.1 }
   ];
 
-  const handleCreateCrate = () => {
+  const handleCreateCrate = async () => {
     if (!crateBatchId || !crateQuantity) {
       toast.error('Please fill all fields');
       return;
@@ -196,161 +207,81 @@ export default function WarehouseDashboard() {
       status: 'Stored',
     };
 
-    addCrate(crate);
-    setCrates([...crates, crate]);
-    toast.success(`Crate ${crate.crateId} created`);
-    setCrateBatchId('');
-    setCrateQuantity('');
+    try {
+      await addCrateToFirestore(crate);
+      setCrateBatchId('');
+      setCrateQuantity('');
+    } catch (e) {
+      // Toast handled in service
+    }
   };
 
   const handleFulfillOrder = async (orderId: string) => {
     setIsFulfilling(true);
-    updateOrderStatus(orderId, 'Processing');
-    setOrders(orders.map(o => o.orderId === orderId ? { ...o, status: 'Processing' as const } : o));
-    toast.success('Order will be fulfilled shortly...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const order = orders.find(o => o.orderId === orderId);
-    const fulfillmentDate = new Date();
-    const store = order ? getRetailerStoreById(order.retailerId) : undefined;
-    const assignment = order ? pickDefaultAssignment(order.orderId) : null;
+    try {
+      // Optimistic UI update or just wait for transaction? 
+      // Transaction is fast enough.
 
-    updateOrder(orderId, {
-      status: 'Fulfilled',
-      fulfillmentDate,
-      retailerStoreName: order?.retailerStoreName || store?.storeName,
-      retailerPhone: order?.retailerPhone || store?.phone,
-      retailerAddress: order?.retailerAddress || store?.address,
-      assignedDriverName: assignment?.driverName,
-      assignedDriverPhone: assignment?.phone,
-      assignedTruckNumber: assignment?.truckNumber,
-    });
+      const order = orders.find(o => o.orderId === orderId);
+      if (!order) throw new Error("Order not found");
 
-    setOrders(orders.map(o => o.orderId === orderId ? {
-      ...o,
-      status: 'Fulfilled' as const,
-      fulfillmentDate,
-      retailerStoreName: o.retailerStoreName || store?.storeName,
-      retailerPhone: o.retailerPhone || store?.phone,
-      retailerAddress: o.retailerAddress || store?.address,
-      assignedDriverName: assignment?.driverName,
-      assignedDriverPhone: assignment?.phone,
-      assignedTruckNumber: assignment?.truckNumber,
-    } : o));
-    if (order) {
-      const batch = getBatchById(order.batchId);
-      if (batch) {
-        // FIFO pick crates for this batch and warehouse
-        const allCrates = getAllCrates();
-        const eligibleCrates = allCrates
-          .filter(
-            (c) =>
-              c.batchId === order.batchId &&
-              c.warehouseId === batch.warehouseId &&
-              (c.status === 'Stored' || !c.status)
-          )
-          .sort(
-            (a, b) =>
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          );
+      const batch = batches.find(b => b.batchId === order.batchId);
+      if (!batch) throw new Error("Batch not found for this order");
 
-        const capacityPerCrate = getCrateCapacity(batch.cropType);
-        const requiredKg = convertCratesToKg(order.quantity, batch.cropType);
-        let pickedKg = 0;
-        const updatedCrates: Crate[] = [];
+      const store = order ? getRetailerStoreById(order.retailerId) : undefined;
+      const assignment = order ? pickDefaultAssignment(order.orderId) : null;
 
-        for (const c of eligibleCrates) {
-          if (pickedKg >= requiredKg) break;
-          pickedKg += c.quantity;
-          updatedCrates.push({
-            ...c,
-            status: 'In Transit',
-            assignedToOrderId: order.orderId,
-          });
-        }
+      const updates: Partial<Order> = {
+        retailerStoreName: order?.retailerStoreName || store?.storeName,
+        retailerPhone: order?.retailerPhone || store?.phone,
+        retailerAddress: order?.retailerAddress || store?.address,
+        assignedDriverName: assignment?.driverName,
+        assignedDriverPhone: assignment?.phone,
+        assignedTruckNumber: assignment?.truckNumber,
+      };
 
-        if (pickedKg < requiredKg) {
-          toast.error(
-            `Insufficient crate stock for FIFO. Needed ≈${requiredKg}kg, found ≈${pickedKg}kg`
-          );
-          setIsFulfilling(false);
-          return;
-        }
+      await fulfillOrderTransaction(order, batch, updates);
 
-        // Persist updated crates
-        const remaining = allCrates.filter(
-          (c) => !updatedCrates.find((u) => u.crateId === c.crateId)
-        );
-        localStorage.setItem(
-          'agrovia_crates',
-          JSON.stringify([...remaining, ...updatedCrates])
-        );
+      // Crates are auto-updated via Firestore listener
+      // Retailer inventory is auto-derived in RetailerDashboard via Firestore listener
 
-        // Maintain legacy crateCount on batch for capacity stats
-        const batches = getAllBatches();
-        const batchIndex = batches.findIndex((b) => b.batchId === order.batchId);
-        if (batchIndex !== -1 && batches[batchIndex].crateCount) {
-          batches[batchIndex].crateCount = Math.max(
-            0,
-            (batches[batchIndex].crateCount || 0) - order.quantity
-          );
-          localStorage.setItem('agrovia_batches', JSON.stringify(batches));
-        }
-
-        const quantityKg = convertCratesToKg(order.quantity, batch.cropType);
-        const updatedOrder = {
-          ...order,
-          quantityKg,
-          fulfillmentDate,
-          retailerStoreName: order.retailerStoreName || store?.storeName,
-          retailerPhone: order.retailerPhone || store?.phone,
-          retailerAddress: order.retailerAddress || store?.address,
-          assignedDriverName: assignment?.driverName,
-          assignedDriverPhone: assignment?.phone,
-          assignedTruckNumber: assignment?.truckNumber,
-        };
-        try {
-          addRetailerInventory(updatedOrder, batch);
-        } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : 'Unknown error';
-          toast.error(`Error adding to retailer inventory: ${message}`);
-          setIsFulfilling(false);
-          return;
-        }
-      }
+    } catch (error) {
+      console.error("Fulfillment failed", error);
+      // toast is handled in service
+    } finally {
+      setFulfillOrderId(null);
+      setIsFulfilling(false);
     }
-    setFulfillOrderId(null);
-    setIsFulfilling(false);
-    toast.success(`Order ${orderId} fulfilled successfully! ${order?.quantity || 0} crates added to retailer inventory.`);
   };
 
   return (
     <Layout>
       <div className="space-y-8 animate-in fade-in duration-700">
         {/* Hero Section */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-500 to-blue-400 text-white shadow-xl p-8 md:p-12 mb-8">
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 text-foreground shadow-xl p-8 md:p-12 mb-8">
           <div className="relative z-10 max-w-2xl space-y-4">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                <WarehouseIcon className="h-6 w-6 text-white" />
+              <div className="p-2 bg-primary/20 rounded-xl backdrop-blur-sm">
+                <WarehouseIcon className="h-6 w-6 text-primary" />
               </div>
-              <span className="text-sm font-medium bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
+              <span className="text-sm font-medium bg-primary/20 px-3 py-1 rounded-full backdrop-blur-sm">
                 Warehouse Management
               </span>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-2">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-2">
               Inventory & Fulfillment Center
             </h1>
-            <p className="text-blue-100 text-lg md:text-xl max-w-lg leading-relaxed">
-              Managing <span className="font-semibold text-white">{batches.length} active batches</span> across <span className="font-semibold text-white">{WAREHOUSES.length} warehouses</span> with <span className="font-semibold text-white">{totalCrates} total crates</span> in inventory.
+            <p className="text-muted-foreground text-lg md:text-xl max-w-lg leading-relaxed">
+              Managing <span className="font-semibold text-foreground">{batches.length} active batches</span> across <span className="font-semibold text-foreground">{WAREHOUSES.length} warehouses</span> with <span className="font-semibold text-foreground">{totalCrates} total crates</span> in inventory.
             </p>
             <div className="pt-4 flex flex-wrap gap-4">
-              <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-white/90 border-0 rounded-xl font-semibold shadow-lg shadow-black/10">
+              <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground border-0 rounded-xl font-semibold shadow-lg">
                 <Link to="/farmer">
                   New Intake
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button variant="outline" onClick={() => exportBatchesToCSV(batches)} size="lg" className="bg-blue-500/20 hover:bg-blue-500/30 text-white border-white/20 rounded-xl hover:text-white backdrop-blur-sm">
+              <Button variant="outline" onClick={() => exportBatchesToCSV(batches)} size="lg" className="bg-primary/20 hover:bg-primary/30 text-foreground border-primary/20 rounded-xl backdrop-blur-sm">
                 <Download className="mr-2 h-4 w-4" />
                 Export Data
               </Button>
@@ -599,7 +530,7 @@ export default function WarehouseDashboard() {
                           >
                             <div className="flex items-center gap-4">
                               <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/20 flex items-center justify-center text-xl">
-                                {product?.emoji || '📦'}
+                                <ProductIcon productId={item.cropType} size={18} className="text-primary" />
                               </div>
                               <div>
                                 <div className="font-semibold">{product?.name || item.cropType}</div>
@@ -632,7 +563,7 @@ export default function WarehouseDashboard() {
                   <Card className="glass-card sticky top-24 border-2 shadow-xl animate-in fade-in duration-500">
                     <CardHeader className="text-center pb-2">
                       <div className="mx-auto h-20 w-20 bg-gradient-to-br from-secondary to-background rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner">
-                        {getProductById(selected.cropType)?.emoji}
+                        <ProductIcon productId={selected.cropType} size={20} className="text-primary" />
                       </div>
                       <CardTitle className="text-xl">{getProductById(selected.cropType)?.name}</CardTitle>
                       <CardDescription className="font-mono text-sm bg-secondary/50 inline-block px-2 py-1 rounded mx-auto">
@@ -734,18 +665,18 @@ export default function WarehouseDashboard() {
                   <svg className="w-full h-full p-8" viewBox="0 0 900 500">
                     {/* Warehouse Connections */}
                     <defs>
-                      <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+                      <marker id="arrowhead" markerWidth="10" markerHeight="7"
                         refX="9" refY="3.5" orient="auto">
                         <polygon points="0 0, 10 3.5, 0 7" fill="#10b981" />
                       </marker>
                     </defs>
-                    
+
                     {/* Inter-warehouse routes */}
                     <path d="M 150 150 L 400 250" stroke="#334155" strokeWidth="2" strokeDasharray="8,4" markerEnd="url(#arrowhead)" />
                     <path d="M 150 350 L 400 250" stroke="#334155" strokeWidth="2" strokeDasharray="8,4" markerEnd="url(#arrowhead)" />
                     <path d="M 400 250 L 650 150" stroke="#334155" strokeWidth="2" strokeDasharray="8,4" markerEnd="url(#arrowhead)" />
                     <path d="M 400 250 L 650 350" stroke="#334155" strokeWidth="2" strokeDasharray="8,4" markerEnd="url(#arrowhead)" />
-                    
+
                     {/* Hub to retailer routes */}
                     <path d="M 650 150 L 800 100" stroke="#10b981" strokeWidth="3" strokeDasharray="5,5" markerEnd="url(#arrowhead)" />
                     <path d="M 650 350 L 800 400" stroke="#10b981" strokeWidth="3" strokeDasharray="5,5" markerEnd="url(#arrowhead)" />
@@ -755,7 +686,7 @@ export default function WarehouseDashboard() {
                       // Enhanced positioning logic based on route
                       let x = 0, y = 0;
                       const progress = driver.currentRoute?.progress || 0;
-                      
+
                       if (driver.currentRoute?.from.includes('Satara') && driver.currentRoute?.to.includes('Pune')) {
                         // Satara to Pune Hub
                         x = 150 + (250 * (progress / 100));
@@ -782,7 +713,7 @@ export default function WarehouseDashboard() {
                         >
                           <circle cx={x} cy={y} r="18" fill="#10b981" className="animate-pulse" opacity="0.3" />
                           <circle cx={x} cy={y} r="12" fill="#10b981" opacity="0.8" />
-                          <image x={x - 12} y={y - 12} width="24" height="24" 
+                          <image x={x - 12} y={y - 12} width="24" height="24"
                             href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='1' y='3' width='15' height='13'></rect><polygon points='16 8 20 8 23 11 23 16 16 16 16 8'></polygon><circle cx='5.5' cy='18.5' r='2.5'></circle><circle cx='18.5' cy='18.5' r='2.5'></circle></svg>" />
                           <text x={x} y={y + 35} textAnchor="middle" fill="#10b981" fontSize="10" fontWeight="bold">
                             {driver.truckNumber.split(' ').pop()}
@@ -797,26 +728,26 @@ export default function WarehouseDashboard() {
                       <text x="50" y="45" textAnchor="middle" fill="#10b981" fontSize="10" fontWeight="bold">SATARA</text>
                       <text x="50" y="58" textAnchor="middle" fill="#10b981" fontSize="8">Warehouse</text>
                     </g>
-                    
+
                     <g transform="translate(100, 300)">
                       <circle cx="50" cy="50" r="35" fill="#0f172a" stroke="#10b981" strokeWidth="3" />
                       <text x="50" y="45" textAnchor="middle" fill="#10b981" fontSize="10" fontWeight="bold">MUMBAI</text>
                       <text x="50" y="58" textAnchor="middle" fill="#10b981" fontSize="8">Warehouse</text>
                     </g>
-                    
+
                     <g transform="translate(350, 200)">
                       <circle cx="50" cy="50" r="45" fill="#0f172a" stroke="#f59e0b" strokeWidth="4" />
                       <text x="50" y="45" textAnchor="middle" fill="#f59e0b" fontSize="12" fontWeight="bold">PUNE</text>
                       <text x="50" y="58" textAnchor="middle" fill="#f59e0b" fontSize="9">Central Hub</text>
                     </g>
-                    
+
                     {/* Retailer Nodes */}
                     <g transform="translate(750, 50)">
                       <rect x="0" y="0" width="80" height="40" rx="8" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
                       <text x="40" y="18" textAnchor="middle" fill="#64748b" fontSize="8">Green Valley</text>
                       <text x="40" y="30" textAnchor="middle" fill="#64748b" fontSize="8">Mumbai</text>
                     </g>
-                    
+
                     <g transform="translate(750, 350)">
                       <rect x="0" y="0" width="80" height="40" rx="8" fill="#1e293b" stroke="#64748b" strokeWidth="2" />
                       <text x="40" y="18" textAnchor="middle" fill="#64748b" fontSize="8">Farm Fresh</text>
@@ -862,33 +793,33 @@ export default function WarehouseDashboard() {
                             {driver.status}
                           </Badge>
                         </div>
-                        
+
                         {driver.currentRoute && (
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <MapPin className="h-3 w-3" />
                               <span>{driver.currentRoute.from} → {driver.currentRoute.to}</span>
                             </div>
-                            
+
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">Progress</span>
                               <span className="font-medium">{driver.currentRoute.progress}%</span>
                             </div>
-                            
+
                             <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="bg-primary h-full transition-all duration-1000"
                                 style={{ width: `${driver.currentRoute.progress}%` }}
                               />
                             </div>
-                            
+
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-muted-foreground">ETA</span>
                               <span className="font-medium text-primary">{driver.currentRoute.eta}</span>
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -910,7 +841,7 @@ export default function WarehouseDashboard() {
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-lg flex items-center gap-2">
-                            <Truck className="h-5 w-5 text-fresh" /> 
+                            <Truck className="h-5 w-5 text-fresh" />
                             {DEFAULT_DRIVER_ASSIGNMENTS.find(d => parseInt(d.truckId.split('-')[1]) === selectedTruck)?.truckNumber || `Vehicle #${selectedTruck}`}
                           </CardTitle>
                           <CardDescription className="text-gray-400 mt-1">
@@ -958,8 +889,8 @@ export default function WarehouseDashboard() {
                         <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
                           <div
                             className="bg-fresh h-full transition-all duration-1000"
-                            style={{ 
-                              width: `${DEFAULT_DRIVER_ASSIGNMENTS.find(d => parseInt(d.truckId.split('-')[1]) === selectedTruck)?.currentRoute?.progress || 65}%` 
+                            style={{
+                              width: `${DEFAULT_DRIVER_ASSIGNMENTS.find(d => parseInt(d.truckId.split('-')[1]) === selectedTruck)?.currentRoute?.progress || 65}%`
                             }}
                           />
                         </div>
@@ -986,24 +917,22 @@ export default function WarehouseDashboard() {
                       {DEFAULT_DRIVER_ASSIGNMENTS.map(driver => (
                         <div key={driver.driverId} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className={`w-3 h-3 rounded-full ${
-                              driver.status === 'On Delivery' ? 'bg-green-500 animate-pulse' :
+                            <div className={`w-3 h-3 rounded-full ${driver.status === 'On Delivery' ? 'bg-green-500 animate-pulse' :
                               driver.status === 'Available' ? 'bg-blue-500' :
-                              driver.status === 'Returning' ? 'bg-yellow-500' :
-                              'bg-red-500'
-                            }`} />
+                                driver.status === 'Returning' ? 'bg-yellow-500' :
+                                  'bg-red-500'
+                              }`} />
                             <div>
                               <p className="font-medium text-sm">{driver.driverName}</p>
                               <p className="text-xs text-muted-foreground">{driver.truckNumber}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <Badge variant="outline" className={`text-xs ${
-                              driver.status === 'On Delivery' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
+                            <Badge variant="outline" className={`text-xs ${driver.status === 'On Delivery' ? 'bg-green-500/10 text-green-600 border-green-500/20' :
                               driver.status === 'Available' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
-                              driver.status === 'Returning' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' :
-                              'bg-red-500/10 text-red-600 border-red-500/20'
-                            }`}>
+                                driver.status === 'Returning' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' :
+                                  'bg-red-500/10 text-red-600 border-red-500/20'
+                              }`}>
                               {driver.status}
                             </Badge>
                             {driver.currentRoute && (
@@ -1048,7 +977,7 @@ export default function WarehouseDashboard() {
                             return (
                               <SelectItem key={batch.batchId} value={batch.batchId}>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-lg">{product?.emoji}</span>
+                                  <ProductIcon productId={batch.cropType} size={18} className="text-primary" />
                                   <span className="font-medium">{product?.name}</span>
                                   <Badge variant="outline" className="ml-2 font-mono text-xs">{batch.batchId}</Badge>
                                   <span className="text-muted-foreground text-xs ml-2">Grade {batch.qualityGrade} • {available}kg</span>
@@ -1131,7 +1060,7 @@ export default function WarehouseDashboard() {
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <p className="font-mono font-bold text-lg">{order.orderId}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(order.orderDate), 'MMM d, h:mm a')}</p>
+                            <p className="text-xs text-muted-foreground">{safeDateFormat(order.orderDate, 'MMM d, h:mm a')}</p>
                           </div>
                           <Badge
                             variant={order.status === 'Processing' ? 'default' : order.status === 'Fulfilled' ? 'default' : 'outline'}
@@ -1148,9 +1077,9 @@ export default function WarehouseDashboard() {
                               {order.quantityKg && <span> (≈{order.quantityKg.toFixed(1)}kg)</span>}
                               {' '}from {order.batchId}
                             </p>
-                            {order.warehouseId && (
+                            {order.sourceWarehouseId && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Warehouse: {WAREHOUSES.find(w => w.id === order.warehouseId)?.name}
+                                Warehouse: {WAREHOUSES.find(w => w.id === order.sourceWarehouseId)?.name}
                               </p>
                             )}
                             <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
@@ -1260,7 +1189,7 @@ export default function WarehouseDashboard() {
                         <p className="text-sm font-semibold mb-1">Order Details:</p>
                         <p className="text-xs">• Batch: {order.batchId}</p>
                         <p className="text-xs">• Quantity: {order.quantity} crates</p>
-                        {order.warehouseId && <p className="text-xs">• Warehouse: {WAREHOUSES.find(w => w.id === order.warehouseId)?.name}</p>}
+                        {order.sourceWarehouseId && <p className="text-xs">• Warehouse: {WAREHOUSES.find(w => w.id === order.sourceWarehouseId)?.name}</p>}
                         <p className="text-xs">• Retailer: {(order.retailerStoreName || store?.storeName || order.retailerId)}</p>
                         {(order.retailerPhone || store?.phone) && <p className="text-xs">• Phone: {(order.retailerPhone || store?.phone)}</p>}
                         {(order.retailerAddress || store?.address) && <p className="text-xs">• Address: {(order.retailerAddress || store?.address)}</p>}

@@ -24,58 +24,58 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="relative space-y-12">
-        {/* Enhanced Hero Section */}
-        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/95 to-primary/85 text-white shadow-2xl">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 text-foreground shadow-md">
           {/* Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 w-full h-full bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.1%22%3E%3Ccircle%20cx%3D%2230%22%20cy%3D%2230%22%20r%3D%222%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')]" />
           </div>
-          
+
           {/* Floating Elements */}
           <div className="absolute top-8 right-8 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse-soft" />
           <div className="absolute bottom-8 left-8 w-24 h-24 bg-fresh/20 rounded-full blur-xl animate-bounce-subtle" />
-          
-          <div className="relative z-20 p-8 md:p-12 lg:p-16">
+
+          <div className="relative z-20 p-6 md:p-10 lg:p-12">
             <div className="max-w-5xl">
               <div className="flex items-center gap-4 mb-8">
-                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-sm shadow-lg border border-white/20">
-                  <Sparkles className="h-10 w-10 text-white" />
+                <div className="p-4 bg-primary/15 rounded-3xl backdrop-blur-sm shadow-lg border border-primary/20">
+                  <Sparkles className="h-10 w-10 text-primary" />
                 </div>
                 <div>
-                  <span className="text-sm font-bold bg-white/20 px-6 py-3 rounded-full backdrop-blur-sm border border-white/30 shadow-lg">
+                  <span className="text-sm font-bold bg-primary/20 px-6 py-3 rounded-full backdrop-blur-sm border border-primary/30 shadow-lg">
                     🌱 Supply Chain Dashboard
                   </span>
-                  <div className="text-primary-foreground/80 text-sm mt-2 font-medium">
+                  <div className="text-muted-foreground text-sm mt-2 font-medium">
                     Real-time insights and analytics • Live tracking enabled
                   </div>
                 </div>
               </div>
-              
-              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-8 leading-tight">
+
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-6 leading-tight">
                 Welcome back to{' '}
                 <span className="relative">
-                  <span className="bg-gradient-to-r from-white via-fresh to-white bg-clip-text text-transparent animate-gradient-x">
+                  <span className="bg-gradient-to-r from-primary via-fresh to-primary bg-clip-text text-transparent animate-gradient-x">
                     AgroVia
                   </span>
-                  <div className="absolute -inset-1 bg-gradient-to-r from-white/20 to-fresh/20 blur-lg opacity-30 animate-pulse" />
+                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-fresh/20 blur-lg opacity-30 animate-pulse" />
                 </span>
               </h1>
-              
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8 border border-white/20 shadow-xl">
-                <p className="text-primary-foreground/90 text-lg md:text-xl lg:text-2xl leading-relaxed">
+
+              <div className="bg-primary/10 backdrop-blur-md rounded-md p-5 mb-6 border border-primary/20 shadow-sm">
+                <p className="text-foreground text-lg md:text-xl lg:text-2xl leading-relaxed">
                   Your supply chain is currently tracking{' '}
-                  <span className="font-bold text-white bg-fresh/20 px-3 py-2 rounded-xl border border-fresh/30 shadow-lg inline-flex items-center gap-2">
+                  <span className="font-bold text-foreground bg-fresh/20 px-3 py-2 rounded-xl border border-fresh/30 shadow-lg inline-flex items-center gap-2">
                     <Package className="h-5 w-5" />
                     {analytics.totalQuantity} kg
                   </span>{' '}
                   of produce with{' '}
-                  <span className="font-bold text-white bg-fresh/20 px-3 py-2 rounded-xl border border-fresh/30 shadow-lg inline-flex items-center gap-2">
+                  <span className="font-bold text-foreground bg-fresh/20 px-3 py-2 rounded-xl border border-fresh/30 shadow-lg inline-flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5" />
                     {analytics.freshBatches} active fresh batches
                   </span>.
                 </p>
-                
-                <div className="flex items-center gap-6 mt-4 text-sm text-primary-foreground/80">
+
+                <div className="flex items-center gap-6 mt-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-fresh animate-pulse" />
                     <span>System Online</span>
@@ -90,12 +90,12 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  asChild 
-                  size="lg" 
-                  className="bg-white/20 hover:bg-white/30 text-white border-white/20 hover:border-white/30 shadow-xl rounded-2xl backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-2xl group"
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-primary/20 hover:bg-primary/30 text-foreground border-primary/20 hover:border-primary/30 shadow-sm rounded-md h-11 backdrop-blur-sm transition-all duration-200 hover:opacity-90 group"
                 >
                   <Link to="/farmer">
                     <Package className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
@@ -103,22 +103,22 @@ export default function Dashboard() {
                     <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  size="lg" 
-                  className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 rounded-2xl backdrop-blur-sm transition-all duration-300 hover:scale-105 group"
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="bg-transparent hover:bg-primary/10 text-foreground border-primary/30 hover:border-primary/50 rounded-md h-11 backdrop-blur-sm transition-all duration-200 group"
                 >
                   <Link to="/reports">
                     <BarChart3 className="mr-3 h-6 w-6 group-hover:scale-110 transition-transform" />
                     View Reports
                   </Link>
                 </Button>
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  size="lg" 
-                  className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 rounded-2xl backdrop-blur-sm transition-all duration-300 hover:scale-105 group"
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="bg-transparent hover:bg-primary/10 text-foreground border-primary/30 hover:border-primary/50 rounded-md h-11 backdrop-blur-sm transition-all duration-200 group"
                 >
                   <Link to="/warehouse">
                     <Leaf className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
@@ -134,7 +134,7 @@ export default function Dashboard() {
         <section className="relative">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent">Quick Actions</h2>
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">Quick Actions</h2>
               <p className="text-muted-foreground text-lg mt-2">Access common tasks and workflows</p>
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function Dashboard() {
 
         {/* Key Metrics */}
         <section className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          <div className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-white/80 to-white/60 dark:from-black/60 dark:to-black/40 backdrop-blur-md border border-white/30 dark:border-white/15 rounded-2xl p-8 relative overflow-hidden">
+          <div className="group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 bg-card border border-border rounded-md p-6 relative overflow-hidden shadow-sm">
             <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full blur-xl group-hover:bg-primary/20 transition-colors" />
             <div className="flex flex-row items-center justify-between pb-4 relative z-10">
               <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
@@ -166,7 +166,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-fresh/10 to-fresh/5 backdrop-blur-md border border-fresh/20 rounded-2xl p-8 relative overflow-hidden">
+          <div className="group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 bg-card border border-border rounded-lg p-6 relative overflow-hidden shadow-sm border-fresh/30 bg-fresh/5">
             <div className="absolute top-0 right-0 w-20 h-20 bg-fresh/20 rounded-full blur-xl group-hover:bg-fresh/30 transition-colors" />
             <div className="flex flex-row items-center justify-between pb-4 relative z-10">
               <div className="text-sm font-bold text-fresh/80 uppercase tracking-wider">
@@ -189,7 +189,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-warning/10 to-warning/5 backdrop-blur-md border border-warning/20 rounded-2xl p-8 relative overflow-hidden">
+          <div className="group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 bg-card border border-border rounded-lg p-6 relative overflow-hidden shadow-sm border-warning/30 bg-warning/5">
             <div className="absolute top-0 right-0 w-20 h-20 bg-warning/20 rounded-full blur-xl group-hover:bg-warning/30 transition-colors" />
             <div className="flex flex-row items-center justify-between pb-4 relative z-10">
               <div className="text-sm font-bold text-warning/80 uppercase tracking-wider">
@@ -212,7 +212,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="group hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 bg-gradient-to-br from-expired/10 to-expired/5 backdrop-blur-md border border-expired/20 rounded-2xl p-8 relative overflow-hidden">
+          <div className="group hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 bg-card border border-border rounded-lg p-6 relative overflow-hidden shadow-sm border-expired/30 bg-expired/5">
             <div className="absolute top-0 right-0 w-20 h-20 bg-expired/20 rounded-full blur-xl group-hover:bg-expired/30 transition-colors" />
             <div className="flex flex-row items-center justify-between pb-4 relative z-10">
               <div className="text-sm font-bold text-expired/80 uppercase tracking-wider">
@@ -239,7 +239,7 @@ export default function Dashboard() {
         {/* Impact Metrics */}
         <section className="relative">
           <div className="grid gap-8 md:grid-cols-3">
-            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/10 p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-md bg-card border border-border p-6 transition-all hover:shadow-md shadow-sm">
               <div className="flex items-center gap-4 mb-6">
                 <div className="p-4 bg-primary/10 rounded-2xl shadow-sm group-hover:bg-primary/20 transition-colors">
                   <TrendingDown className="h-8 w-8 text-primary" />
@@ -258,7 +258,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-fresh/5 to-fresh/10 border border-fresh/10 p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-lg bg-card border border-border p-6 transition-all hover:shadow-md shadow-sm border-fresh/20 bg-fresh/5">
               <div className="flex items-center gap-4 mb-6">
                 <div className="p-4 bg-fresh/10 rounded-2xl shadow-sm group-hover:bg-fresh/20 transition-colors">
                   <TrendingDown className="h-8 w-8 text-fresh" />
@@ -275,7 +275,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent/5 to-accent/10 border border-accent/10 p-8 transition-all hover:shadow-lg">
+            <div className="group relative overflow-hidden rounded-lg bg-card border border-border p-6 transition-all hover:shadow-md shadow-sm border-accent/20 bg-accent/5">
               <div className="flex items-center gap-4 mb-6">
                 <div className="p-4 bg-accent/10 rounded-2xl shadow-sm group-hover:bg-accent/20 transition-colors">
                   <Shield className="h-8 w-8 text-accent" />

@@ -9,7 +9,7 @@ export interface Order {
   quantity: number; // In crates
   quantityKg?: number; // Derived KG (read-only)
   orderDate: Date;
-  status: 'Pending' | 'Processing' | 'In Transit to Hub' | 'At Hub' | 'Out for Delivery' | 'Delivered' | 'Cancelled';
+  status: 'Pending' | 'Processing' | 'In Transit to Hub' | 'At Hub' | 'Out for Delivery' | 'Delivered' | 'Fulfilled' | 'Cancelled';
   fulfillmentDate?: Date;
   // Payment option
   paymentOption?: 'Pay Instantly' | 'Pay Later';
@@ -137,13 +137,13 @@ export function getAvailableQuantity(batchId: string, totalQuantity: number): nu
 export function reduceInventory(batchId: string, quantity: number): boolean {
   const records = getInventoryRecords();
   const existingIndex = records.findIndex(r => r.batchId === batchId);
-  
+
   if (existingIndex >= 0) {
     records[existingIndex].soldQuantity += quantity;
   } else {
     records.push({ batchId, soldQuantity: quantity });
   }
-  
+
   localStorage.setItem(STORAGE_KEY_INVENTORY, JSON.stringify(records));
   return true;
 }

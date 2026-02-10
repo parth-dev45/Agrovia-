@@ -1,18 +1,40 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getBatchById } from '@/lib/mockData';
+import { useBatch } from '@/lib/services/batchService';
 import { calculateDaysSinceHarvest } from '@/lib/freshness';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertTriangle, XCircle, Leaf, ArrowLeft, Calendar, Clock, MapPin, Truck, ChevronRight, ShieldCheck, Warehouse } from 'lucide-react';
 import { getWarehouseById } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { getProductById } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
+import { ProductIcon } from '@/components/ProductIcon';
+
+// Helper for safe date formatting
+const safeDateFormat = (dateInput: any, formatStr?: Intl.DateTimeFormatOptions) => {
+  try {
+    if (!dateInput) return 'N/A';
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return date.toLocaleDateString(undefined, formatStr || { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (e) {
+    return 'Error';
+  }
+};
 
 export default function ConsumerScan() {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
-  const batch = batchId ? getBatchById(batchId) : null;
+  const { batch, loading } = useBatch(batchId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   if (!batch) {
     return (
@@ -43,7 +65,9 @@ export default function ConsumerScan() {
   const productName = product?.name || batch.cropType;
   const productUnit = product?.unit || 'kg';
 
-  const daysSinceHarvest = calculateDaysSinceHarvest(new Date(batch.harvestDate));
+  // Ensure dates are valid before usage
+  const harvestDate = batch.harvestDate ? new Date(batch.harvestDate) : new Date();
+  const daysSinceHarvest = calculateDaysSinceHarvest(harvestDate);
   const remainingDays = batch.retailStatus?.remainingDays || 0;
   const status = batch.retailStatus?.status || 'Unknown';
 
@@ -87,14 +111,14 @@ export default function ConsumerScan() {
     {
       icon: MapPin,
       title: 'Harvested',
-      date: new Date(batch.harvestDate),
+      date: harvestDate,
       detail: batch.farmer?.name || 'Partner Farm',
       active: true
     },
     {
       icon: ShieldCheck,
       title: 'Quality Tested',
-      date: batch.qualityTest?.testDate || new Date(batch.harvestDate),
+      date: batch.qualityTest?.testDate || harvestDate,
       detail: batch.qualityGrade ? `Grade ${batch.qualityGrade} Verified` : 'Pending',
       active: !!batch.qualityGrade
     },
@@ -102,7 +126,7 @@ export default function ConsumerScan() {
       icon: Truck,
       title: batch.warehouseId ? 'Stored at Warehouse' : 'In Transit/Storage',
       date: batch.storage?.entryDate || new Date(),
-      detail: batch.warehouseId 
+      detail: batch.warehouseId
         ? `${getWarehouseById(batch.warehouseId)?.name || batch.warehouseId} - ${batch.storage?.storageType === 'Cold' ? 'Cold Chain' : 'Standard Storage'}`
         : batch.storage?.storageType === 'Cold' ? 'Cold Chain Preserved' : 'Standard Storage',
       active: true
@@ -153,8 +177,8 @@ export default function ConsumerScan() {
           <Card className="relative overflow-hidden border-2 shadow-2xl rounded-3xl backdrop-blur-sm">
             <div className={cn("absolute top-0 left-0 w-full h-3", config.bg)} />
             <CardContent className="pt-10 pb-8 text-center space-y-6">
-              <div className="mx-auto w-28 h-28 bg-gradient-to-br from-white/90 to-white/70 dark:from-secondary dark:to-background rounded-full flex items-center justify-center shadow-2xl border-4 border-white/50 dark:border-border/50 text-6xl backdrop-blur-sm">
-                {product?.emoji || '🥬'}
+              <div className="mx-auto w-28 h-28 bg-gradient-to-br from-white/90 to-white/70 dark:from-secondary dark:to-background rounded-full flex items-center justify-center shadow-2xl border-4 border-white/50 dark:border-border/50 backdrop-blur-sm">
+                <ProductIcon productId={batch.cropType} size={64} className="text-primary" />
               </div>
               <div className="space-y-3">
                 <h2 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
@@ -210,7 +234,7 @@ export default function ConsumerScan() {
                     <p className="font-bold text-lg leading-none mb-2">{step.title}</p>
                     <p className="text-sm text-muted-foreground mb-2 leading-relaxed">{step.detail}</p>
                     <p className="text-xs text-muted-foreground/70 font-mono bg-secondary/30 px-2 py-1 rounded-md inline-block">
-                      {step.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {safeDateFormat(step.date, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>

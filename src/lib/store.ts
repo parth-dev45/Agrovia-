@@ -9,7 +9,7 @@ export interface Product {
     unit: string;
     entryDate: string;
     expiryDate: string;
-    status: 'Pending' | 'Graded' | 'Stored' | 'Shipped' | 'Retail';
+    status: 'Registered' | 'Test Pending' | 'Tested' | 'Pending' | 'Graded' | 'Stored' | 'Shipped' | 'Retail';
     grade?: string;
     price?: number;
     image?: string;

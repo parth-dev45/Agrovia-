@@ -11,6 +11,18 @@ import { Store, QrCode, Search, CheckCircle2, XCircle, AlertTriangle, Calendar, 
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
+// Helper for safe date formatting
+const safeDateFormat = (dateInput: any, formatStr: string) => {
+  try {
+    if (!dateInput) return 'N/A';
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return format(date, formatStr);
+  } catch (e) {
+    return 'Error';
+  }
+};
+
 export default function Retailer() {
   const [batchId, setBatchId] = useState('');
   const [searchedBatch, setSearchedBatch] = useState<BatchWithDetails | null>(null);
@@ -18,7 +30,7 @@ export default function Retailer() {
 
   const handleSearch = () => {
     if (!batchId.trim()) return;
-    
+
     const batch = getBatchById(batchId.trim().toUpperCase());
     if (batch) {
       setSearchedBatch(batch);
@@ -111,8 +123,8 @@ export default function Retailer() {
             {/* Sale Status Banner */}
             <Card className={cn(
               'border-2',
-              searchedBatch.retailStatus?.saleAllowed 
-                ? 'border-fresh bg-fresh/5' 
+              searchedBatch.retailStatus?.saleAllowed
+                ? 'border-fresh bg-fresh/5'
                 : 'border-expired bg-expired/5'
             )}>
               <CardContent className="pt-6">
@@ -120,8 +132,8 @@ export default function Retailer() {
                   <div className="flex items-center gap-4">
                     <div className={cn(
                       'h-16 w-16 rounded-full flex items-center justify-center',
-                      searchedBatch.retailStatus?.saleAllowed 
-                        ? 'bg-fresh/20' 
+                      searchedBatch.retailStatus?.saleAllowed
+                        ? 'bg-fresh/20'
                         : 'bg-expired/20'
                     )}>
                       {searchedBatch.retailStatus?.saleAllowed ? (
@@ -133,17 +145,17 @@ export default function Retailer() {
                     <div>
                       <h3 className={cn(
                         'text-2xl font-bold',
-                        searchedBatch.retailStatus?.saleAllowed 
-                          ? 'text-fresh' 
+                        searchedBatch.retailStatus?.saleAllowed
+                          ? 'text-fresh'
                           : 'text-expired'
                       )}>
-                        {searchedBatch.retailStatus?.saleAllowed 
-                          ? 'SALE ALLOWED' 
+                        {searchedBatch.retailStatus?.saleAllowed
+                          ? 'SALE ALLOWED'
                           : 'SALE BLOCKED'}
                       </h3>
                       <p className="text-muted-foreground">
-                        {searchedBatch.retailStatus?.saleAllowed 
-                          ? 'This batch is safe to sell to consumers' 
+                        {searchedBatch.retailStatus?.saleAllowed
+                          ? 'This batch is safe to sell to consumers'
                           : 'This batch has expired and cannot be sold'}
                       </p>
                     </div>
@@ -183,7 +195,7 @@ export default function Retailer() {
                         <div>
                           <p className="text-xs text-muted-foreground">Harvested</p>
                           <p className="text-sm font-medium">
-                            {format(new Date(searchedBatch.harvestDate), 'MMM d, yyyy')}
+                            {safeDateFormat(searchedBatch.harvestDate, 'MMM d, yyyy')}
                           </p>
                         </div>
                       </div>
@@ -192,7 +204,7 @@ export default function Retailer() {
                         <div>
                           <p className="text-xs text-muted-foreground">Sell By</p>
                           <p className="text-sm font-medium">
-                            {searchedBatch.retailStatus && format(new Date(searchedBatch.retailStatus.sellByDate), 'MMM d, yyyy')}
+                            {searchedBatch.retailStatus && safeDateFormat(searchedBatch.retailStatus.sellByDate, 'MMM d, yyyy')}
                           </p>
                         </div>
                       </div>
@@ -218,13 +230,13 @@ export default function Retailer() {
                       <p className="text-xs text-muted-foreground">Remaining Shelf Life</p>
                       <p className={cn(
                         'text-2xl font-bold',
-                        searchedBatch.retailStatus && searchedBatch.retailStatus.remainingDays <= 0 
-                          ? 'text-expired' 
-                          : searchedBatch.retailStatus && searchedBatch.retailStatus.remainingDays <= 3 
-                            ? 'text-warning' 
+                        searchedBatch.retailStatus && searchedBatch.retailStatus.remainingDays <= 0
+                          ? 'text-expired'
+                          : searchedBatch.retailStatus && searchedBatch.retailStatus.remainingDays <= 3
+                            ? 'text-warning'
                             : 'text-fresh'
                       )}>
-                        {searchedBatch.retailStatus && searchedBatch.retailStatus.remainingDays > 0 
+                        {searchedBatch.retailStatus && searchedBatch.retailStatus.remainingDays > 0
                           ? `${searchedBatch.retailStatus.remainingDays} days`
                           : 'Expired'}
                       </p>
@@ -239,7 +251,7 @@ export default function Retailer() {
                     <div>
                       <p className="font-medium text-warning-foreground">Priority Sale Recommended</p>
                       <p className="text-sm text-muted-foreground">
-                        This batch should be sold within the next {searchedBatch.retailStatus.remainingDays} days. 
+                        This batch should be sold within the next {searchedBatch.retailStatus.remainingDays} days.
                         Consider promotional pricing to reduce waste.
                       </p>
                     </div>
