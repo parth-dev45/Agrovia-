@@ -62,10 +62,7 @@ export default function CustomerTraceability({ defaultTab }: { defaultTab?: 'cus
                     <div className="w-2 h-2 rounded-full bg-fresh animate-pulse" />
                     <span>Live Verification</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="w-2 h-2 rounded-full bg-primary" />
-                    <span>Blockchain Secured</span>
-                  </div>
+
                 </div>
               </div>
             </div>
