@@ -147,7 +147,7 @@ export default function ConsumerChatbot() {
                                                             {msg.actions.map(action => (
                                                                 <button
                                                                     key={action.value}
-                                                                    onClick={() => handleSendMessage(action.value)}
+                                                                    onClick={() => handleSendMessage(action.label)}
                                                                     className="text-xs bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 px-3 py-1.5 rounded-full transition-colors font-medium"
                                                                 >
                                                                     {action.label}
