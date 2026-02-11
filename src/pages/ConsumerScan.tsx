@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { getProductById } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 import { ProductIcon } from '@/components/ProductIcon';
+import ConsumerChatbot from '@/components/ConsumerChatbot';
 
 // Helper for safe date formatting
 const safeDateFormat = (dateInput: any, formatStr?: Intl.DateTimeFormatOptions) => {
@@ -323,6 +324,8 @@ export default function ConsumerScan() {
         </div>
 
       </main>
+
+      <ConsumerChatbot />
     </div>
   );
 }

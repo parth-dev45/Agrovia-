@@ -11,6 +11,7 @@ import { useCustomers } from '@/lib/services/customerService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import ConsumerChatbot from '@/components/ConsumerChatbot';
 
 export default function CustomerTraceability({ defaultTab }: { defaultTab?: 'customer' | 'traceability' }) {
   const [tab, setTab] = useState<'customer' | 'traceability' | 'members'>(defaultTab || 'customer');
@@ -157,6 +158,7 @@ export default function CustomerTraceability({ defaultTab }: { defaultTab?: 'cus
           </TabsContent>
         </Tabs>
       </div>
+      <ConsumerChatbot />
     </Layout>
   );
 }
