@@ -888,7 +888,26 @@ export default function RetailerDashboard() {
                       ))}
                     </div>
 
-                    <div className="border-t border-dashed pt-4 flex justify-between items-end">
+                    <div className="border-t border-dashed pt-4 mb-2">
+                      <div className="flex justify-between items-center text-sm mb-1">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-medium">Rs.{(generatedBill.totalAmount / (1 - (generatedBill.customerMemberId ? (
+                          generatedBill.customerMemberId.startsWith('AGV-') ? 0 : 0 // Fallback if needed, but better to recalc
+                        ) : 0))).toFixed(3)}</span>
+                        {/* Note: Reverse calculating subtotal since we only stored totalAmount. 
+                              Better approach: recalculate from items. */}
+                        <span className="font-medium">Rs.{generatedBill.items.reduce((sum, item) => sum + item.amount, 0).toFixed(3)}</span>
+                      </div>
+
+                      {generatedBill.customerMemberId && generatedBill.items.reduce((sum, item) => sum + item.amount, 0) > generatedBill.totalAmount && (
+                        <div className="flex justify-between items-center text-sm text-green-600">
+                          <span>Discount {generatedBill.customerName ? `(${generatedBill.customerName})` : ''}</span>
+                          <span>- Rs.{(generatedBill.items.reduce((sum, item) => sum + item.amount, 0) - generatedBill.totalAmount).toFixed(3)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-between items-end">
                       <span className="text-sm font-bold uppercase text-muted-foreground">Total</span>
                       <span className="text-2xl font-black">Rs.{generatedBill.totalAmount.toFixed(3)}</span>
                     </div>
