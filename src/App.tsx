@@ -26,6 +26,7 @@ const FeaturesGlass = lazy(() => import("./pages/FeaturesGlass"));
 const HeroDemo = lazy(() => import("./pages/HeroDemo"));
 const ComponentDemo = lazy(() => import("./pages/ComponentDemo"));
 const Members = lazy(() => import("./pages/Members"));
+const ConsumerQRScanner = lazy(() => import("./pages/ConsumerQRScanner"));
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/traceability" element={<CustomerTraceability defaultTab="traceability" />} />
                 <Route path="/consumer/members" element={<Members />} />
                 <Route path="/demo" element={<ComponentDemo />} />
+                <Route path="/scan" element={<ConsumerQRScanner />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

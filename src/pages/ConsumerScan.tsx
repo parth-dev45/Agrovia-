@@ -244,30 +244,68 @@ export default function ConsumerScan() {
           </CardContent>
         </Card>
 
-        {/* Enhanced Details Grid */}
-        <div className="grid grid-cols-2 gap-6">
+        {/* Enhanced Details Grid & Farmer Info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 border-2 shadow-lg">
-            <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-              <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-primary" />
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-12 w-12 bg-primary/10 rounded-2xl flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Harvest Age</p>
+                  <p className="text-2xl font-bold text-primary">{daysSinceHarvest} <span className="text-base font-normal text-muted-foreground">days</span></p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Harvest Age</p>
-                <p className="text-2xl font-bold text-primary">{daysSinceHarvest} <span className="text-base font-normal text-muted-foreground">days</span></p>
-              </div>
+
+              {batch.farmer && (
+                <div className="mt-4 pt-4 border-t border-primary/10">
+                  <p className="text-xs text-muted-foreground font-medium uppercase mb-2">Grown By</p>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                      {batch.farmer.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground">{batch.farmer.name}</p>
+                      <p className="text-xs text-muted-foreground">Registered Partner Farm</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
+
           <Card className="bg-gradient-to-br from-fresh/10 to-fresh/5 border-fresh/20 border-2 shadow-lg">
-            <CardContent className="p-6 flex flex-col items-center text-center gap-3">
-              <div className="h-12 w-12 bg-fresh/10 rounded-2xl flex items-center justify-center">
-                <Clock className="h-6 w-6 text-fresh" />
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="h-12 w-12 bg-fresh/10 rounded-2xl flex items-center justify-center">
+                  <Clock className="h-6 w-6 text-fresh" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Freshness</p>
+                  <p className={cn("text-2xl font-bold", remainingDays <= 2 ? "text-warning" : "text-fresh")}>
+                    {remainingDays} <span className="text-base font-normal text-muted-foreground">days left</span>
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Remaining</p>
-                <p className={cn("text-2xl font-bold", remainingDays <= 2 ? "text-warning" : "text-fresh")}>
-                  {remainingDays} <span className="text-base font-normal text-muted-foreground">days</span>
-                </p>
-              </div>
+
+              {batch.qualityTest && (
+                <div className="mt-4 pt-4 border-t border-fresh/10 space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium uppercase mb-1">Quality Score</p>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Visual</span>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(v => (
+                        <div key={v} className={cn("w-4 h-2 rounded-sm", v <= (batch.qualityTest?.visualQuality || 0) ? "bg-fresh" : "bg-muted")} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Firmness</span>
+                    <span className="font-medium text-fresh">{batch.qualityTest.firmness || 'N/A'}</span>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
