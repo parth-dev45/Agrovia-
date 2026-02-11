@@ -14,7 +14,8 @@ import {
   Search,
   Settings,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  Crown
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ const navItems = [
   { path: '/warehouse', label: 'Warehouse Inventory', icon: Warehouse, description: 'Inventory Management', roles: ['admin'] },
   { path: '/retailer', label: 'Retailer', icon: Store, description: 'Retail Operations', roles: ['retailer'] },
   { path: '/customer', label: 'Traceability', icon: User, description: 'Customer & Tracking', roles: ['customer'] },
+  { path: '/consumer/members', label: 'Membership', icon: Crown, description: 'Join or View Status', roles: ['customer'] },
   { path: '/reports', label: 'Analytics', icon: BarChart3, description: 'Reports', roles: ['super_admin'] }, // Hidden for now
 ];
 

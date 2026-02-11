@@ -83,18 +83,27 @@ export async function createCustomerInFirestore(opts: {
         name: opts.name?.trim(),
         email: opts.email?.trim(),
         createdAt: new Date().toISOString(),
+        membershipTier: 'Free',
+        membershipJoinDate: new Date().toISOString(),
+        points: 0
     };
 
     try {
-        const docRef = doc(db, CUSTOMERS_COLLECTION, memberId); // Use Member ID as Doc ID for easy lookup
-        // Sanitize data (remove undefined) to prevent Firestore errors
-        const customerData = {
-            ...customer,
-            createdAt: Timestamp.fromDate(new Date())
-        };
-        const cleanCustomer = JSON.parse(JSON.stringify(customerData));
+        const docRef = doc(db, CUSTOMERS_COLLECTION, memberId);
+        // Save to Firestore with Timestamp for consistency if needed, or ISO string
+        // The type expects string for createdAt, but Firestore handles it. 
+        // Let's stick to storing as serialized object if we want to match the type EXACTLY, 
+        // but typically we store Timestamps. 
+        // Based on existing code reading it back: 
+        // createdAt: data.createdAt instanceof Timestamp ? ... : ...
+        // So we can store proper Firestore data.
 
-        await setDoc(docRef, cleanCustomer);
+        await setDoc(docRef, {
+            ...customer,
+            createdAt: Timestamp.now(),
+            membershipJoinDate: Timestamp.now()
+        });
+
         toast.success(`Member created: ${memberId}`);
         return customer;
     } catch (e) {
@@ -122,5 +131,22 @@ export async function getCustomerByPhoneFromFirestore(phone: string): Promise<Cu
     } catch (e) {
         console.error("Error fetching customer by phone", e);
         return null;
+    }
+}
+
+export async function updateCustomerMembership(memberId: string, tier: 'Free' | 'Standard' | 'Premium') {
+    try {
+        const docRef = doc(db, CUSTOMERS_COLLECTION, memberId);
+        await setDoc(docRef, {
+            membershipTier: tier,
+            membershipJoinDate: new Date().toISOString()
+        }, { merge: true });
+
+        toast.success(`Membership upgraded to ${tier}!`);
+        return true;
+    } catch (e) {
+        console.error("Error updating membership", e);
+        toast.error("Failed to update membership");
+        throw e;
     }
 }

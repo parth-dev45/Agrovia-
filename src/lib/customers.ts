@@ -4,6 +4,9 @@ export interface Customer {
   name?: string;
   email?: string;
   createdAt: string;
+  membershipTier: 'Free' | 'Standard' | 'Premium';
+  membershipJoinDate?: string;
+  points: number;
 }
 
 const STORAGE_KEY = 'agrovia_customers';
@@ -52,6 +55,9 @@ export function createCustomer(opts: {
     name: opts.name?.trim() || undefined,
     email: opts.email?.trim() || undefined,
     createdAt: new Date().toISOString(),
+    membershipTier: 'Free', // Default to Free
+    membershipJoinDate: new Date().toISOString(),
+    points: 0
   };
 
   customers.push(customer);

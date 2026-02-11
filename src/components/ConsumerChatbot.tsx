@@ -6,6 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, X, Send, Bot, User, ThumbsUp, HelpCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getBillByCodeFromFirestore } from '@/lib/services/orderService';
+import { Bill } from '@/lib/orderData';
 
 type Message = {
     id: string;
@@ -15,8 +17,12 @@ type Message = {
     actions?: { label: string; value: string }[];
 };
 
+type ChatState = 'init' | 'awaiting_bill_code' | 'awaiting_issue_details' | 'loop_ask';
+
 export default function ConsumerChatbot() {
     const [isOpen, setIsOpen] = useState(false);
+    const [chatState, setChatState] = useState<ChatState>('init');
+    const [currentBill, setCurrentBill] = useState<Bill | null>(null);
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
@@ -40,58 +46,115 @@ export default function ConsumerChatbot() {
         }
     }, [messages, isTyping]);
 
-    const handleSendMessage = (text: string) => {
-        if (!text.trim()) return;
-
-        // Add user message
-        const userMsg: Message = {
+    const addMessage = (text: string, sender: 'user' | 'bot', actions?: { label: string; value: string }[]) => {
+        setMessages(prev => [...prev, {
             id: Date.now().toString(),
             text,
-            sender: 'user',
-            timestamp: new Date()
-        };
-        setMessages(prev => [...prev, userMsg]);
+            sender,
+            timestamp: new Date(),
+            actions
+        }]);
+    };
+
+    const handleSendMessage = async (text: string) => {
+        if (!text.trim()) return;
+
+        addMessage(text, 'user');
         setInputValue('');
         setIsTyping(true);
 
-        // Simulate bot response
-        setTimeout(() => {
-            const botResponse = generateBotResponse(text);
-            setMessages(prev => [...prev, botResponse]);
-            setIsTyping(false);
-        }, 1000 + Math.random() * 1000);
+        // Process logic based on state
+        await processResponse(text);
+
+        setIsTyping(false);
     };
 
-    const generateBotResponse = (input: string): Message => {
+    const processResponse = async (input: string) => {
         const lowerInput = input.toLowerCase();
-        let text = "I'm sorry, I didn't quite catch that. Could you please rephrase?";
-        let actions: { label: string; value: string }[] | undefined;
 
-        if (lowerInput.includes('report') || lowerInput === 'report_issue') {
-            text = "I'm sorry to hear that. What seems to be the issue with your product?";
-            actions = [
-                { label: 'Spoiled / Rotten', value: 'issue_spoiled' },
-                { label: 'Damaged Packaging', value: 'issue_damaged' },
-                { label: 'Wrong Item', value: 'issue_wrong' }
-            ];
-        } else if (lowerInput.includes('spoiled') || lowerInput.includes('damaged') || lowerInput.includes('wrong') || lowerInput.startsWith('issue_')) {
-            const ticketId = 'TKT-' + Math.floor(Math.random() * 10000);
-            text = `I've logged your complaint. Your Support Ticket ID is **${ticketId}**. Our team will review it and contact you within 24 hours.`;
-        } else if (lowerInput.includes('product') || lowerInput === 'product_info') {
-            text = "You can view detailed product information by scanning the QR code on the packaging. On the scan page, you'll see the farm origin, harvest date, and quality grades.";
-        } else if (lowerInput.includes('contact') || lowerInput === 'contact_support') {
-            text = "You can reach our support team at support@agrovia.com or call us at 1-800-AGROVIA.";
-        } else if (lowerInput.includes('thank')) {
-            text = "You're welcome! Let me know if you need anything else.";
+        // Simulate thinking delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // State Machine Logic
+        switch (chatState) {
+            case 'init':
+                if (lowerInput.includes('report') || lowerInput === 'report_issue') {
+                    setChatState('awaiting_bill_code');
+                    addMessage("I can help with that. Please enter the **6-character Unique Code** found on your bill (e.g., X8K9L2).", 'bot');
+                } else if (lowerInput.includes('product') || lowerInput === 'product_info') {
+                    addMessage("You can view detailed product information by scanning the QR code on the packaging. To scan, go to the 'Scan' tab.", 'bot');
+                    askLoop();
+                } else if (lowerInput.includes('contact') || lowerInput === 'contact_support') {
+                    addMessage("You can reach our support team at **support@agrovia.com** or call **1-800-AGROVIA**.", 'bot');
+                    askLoop();
+                } else {
+                    addMessage("I'm not sure I understand. Please choose an option below or describe your request.", 'bot', [
+                        { label: 'Report Quality Issue', value: 'report_issue' },
+                        { label: 'Product Information', value: 'product_info' },
+                        { label: 'Contact Support', value: 'contact_support' }
+                    ]);
+                }
+                break;
+
+            case 'awaiting_bill_code':
+                const code = input.trim().toUpperCase();
+                // Basic validation (length check?)
+                if (code.length < 4) {
+                    addMessage("That code looks a bit short. Please check your bill and try again.", 'bot');
+                    return;
+                }
+
+                try {
+                    const bill = await getBillByCodeFromFirestore(code);
+                    if (bill) {
+                        setCurrentBill(bill);
+                        setChatState('awaiting_issue_details');
+                        const productNames = bill.items.map(i => i.productName).join(', ');
+                        addMessage(`I found your bill from **${new Date(bill.createdAt).toLocaleDateString()}** for **${productNames}**. Please describe the issue you are facing (e.g., spoiled, damaged packaging).`, 'bot');
+                    } else {
+                        addMessage("I couldn't find a bill with that code. Please verify and try again, or type 'cancel' to go back.", 'bot');
+                    }
+                } catch (e) {
+                    addMessage("There was an error looking up your bill. Please try again later.", 'bot');
+                    setChatState('init');
+                }
+                break;
+
+            case 'awaiting_issue_details':
+                const ticketId = 'TKT-' + Math.floor(Math.random() * 10000);
+                addMessage(`I've logged your complaint for Bill **${currentBill?.uniqueCode}**. Your Support Ticket ID is **${ticketId}**. Our team will verify the batch traceability data and contact you shortly.`, 'bot');
+                setChatState('init'); // Reset state technically, but logically we ask for more
+                askLoop();
+                break;
+
+            case 'loop_ask':
+                if (lowerInput.includes('yes') || lowerInput.includes('sure') || lowerInput.includes('yep')) {
+                    setChatState('init');
+                    addMessage("What else can I help you with?", 'bot', [
+                        { label: 'Report Quality Issue', value: 'report_issue' },
+                        { label: 'Product Information', value: 'product_info' }
+                    ]);
+                } else if (lowerInput.includes('no') || lowerInput.includes('thanks')) {
+                    addMessage("You're welcome! Have a great day! 🌟", 'bot');
+                    setChatState('init'); // Ready for next time
+                } else {
+                    addMessage("I didn't catch that. Is there anything else I can help with?", 'bot', [
+                        { label: 'Yes', value: 'yes' },
+                        { label: 'No, thanks', value: 'no' }
+                    ]);
+                }
+                break;
         }
+    };
 
-        return {
-            id: (Date.now() + 1).toString(),
-            text,
-            sender: 'bot',
-            timestamp: new Date(),
-            actions
-        };
+    const askLoop = async () => {
+        // Small delay before asking loop
+        setChatState('loop_ask');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        addMessage("Is there anything else I can help you with?", 'bot', [
+            { label: 'Yes', value: 'yes' },
+            { label: 'No, thanks', value: 'no' }
+        ]);
     };
 
     return (
@@ -138,10 +201,8 @@ export default function ConsumerChatbot() {
                                                         ? "bg-primary text-primary-foreground rounded-tr-none"
                                                         : "bg-white dark:bg-slate-800 text-foreground rounded-tl-none border border-border"
                                                 )}>
-                                                    {/* Render text with basic markdown support (for bolding Ticket ID) */}
                                                     <div dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
 
-                                                    {/* Quick Actions */}
                                                     {msg.actions && (
                                                         <div className="mt-2 flex flex-wrap gap-2">
                                                             {msg.actions.map(action => (
@@ -182,7 +243,7 @@ export default function ConsumerChatbot() {
                                     className="flex w-full items-center gap-2"
                                 >
                                     <Input
-                                        placeholder="Type your message..."
+                                        placeholder={chatState === 'awaiting_bill_code' ? "Enter 6-digit code..." : "Type your message..."}
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
                                         className="rounded-full bg-secondary/50 border-transparent focus:bg-background focus:border-border transition-all"

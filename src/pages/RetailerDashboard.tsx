@@ -153,6 +153,7 @@ export default function RetailerDashboard() {
     phone: string;
     memberId: string;
     name?: string;
+    membershipTier?: 'Free' | 'Standard' | 'Premium' | 'Basic';
   } | null>(null);
   const [orderPaymentOption, setOrderPaymentOption] = useState<'Pay Instantly' | 'Pay Later'>('Pay Later');
   const [billPaymentMethod, setBillPaymentMethod] = useState<'Cash' | 'Card' | 'UPI' | 'Card Swipe/NFC'>('Cash');
@@ -332,7 +333,28 @@ export default function RetailerDashboard() {
   };
 
   const calculateTotal = () => {
+    const subtotal = billItems.reduce((sum, item) => sum + (item.quantity * item.pricePerKg), 0);
+
+    // Apply Membership Discount
+    let discount = 0;
+    if (selectedCustomer?.membershipTier === 'Standard') {
+      discount = subtotal * 0.05;
+    } else if (selectedCustomer?.membershipTier === 'Premium') {
+      discount = subtotal * 0.10;
+    }
+
+    return Math.max(0, subtotal - discount);
+  };
+
+  const calculateSubtotal = () => {
     return billItems.reduce((sum, item) => sum + (item.quantity * item.pricePerKg), 0);
+  };
+
+  const getDiscountAmount = () => {
+    const subtotal = calculateSubtotal();
+    if (selectedCustomer?.membershipTier === 'Standard') return subtotal * 0.05;
+    if (selectedCustomer?.membershipTier === 'Premium') return subtotal * 0.10;
+    return 0;
   };
 
   const handleGenerateBill = async () => {
@@ -432,6 +454,16 @@ export default function RetailerDashboard() {
               `).join('')}
             </tbody>
           </table>
+            </tbody>
+          </table>
+          <div style="text-align: right; margin-bottom: 5px;">
+            Subtotal: Rs.${calculateSubtotal().toFixed(3)}
+          </div>
+          ${getDiscountAmount() > 0 ? `
+          <div style="text-align: right; margin-bottom: 5px; color: green;">
+             Discount (${selectedCustomer?.membershipTier}): -Rs.${getDiscountAmount().toFixed(3)}
+          </div>
+          ` : ''}
           <div class="total">TOTAL: Rs.${generatedBill.totalAmount.toFixed(3)}</div>
           <div class="barcode">
             <svg id="barcode"></svg>
@@ -557,6 +589,7 @@ export default function RetailerDashboard() {
                                     phone: existing.phone,
                                     memberId: existing.memberId,
                                     name: existing.name,
+                                    membershipTier: existing.membershipTier as any
                                   });
                                   toast.success(`Member found: ${existing.memberId}`);
                                 } else {
@@ -587,6 +620,7 @@ export default function RetailerDashboard() {
                                 phone: customer.phone,
                                 memberId: customer.memberId,
                                 name: customer.name,
+                                membershipTier: customer.membershipTier as any
                               });
                             } catch (e) {
                               // Service handles toast
@@ -606,8 +640,10 @@ export default function RetailerDashboard() {
                               ID: <span className="font-mono">{selectedCustomer.memberId}</span>
                             </p>
                           </div>
-                          <Badge variant="outline" className="text-[10px]">
-                            MEMBER
+                          <Badge variant="outline" className={`text-[10px] ${selectedCustomer.membershipTier === 'Premium' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                              selectedCustomer.membershipTier === 'Standard' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : ''
+                            }`}>
+                            {selectedCustomer.membershipTier?.toUpperCase() || 'MEMBER'}
                           </Badge>
                         </div>
                       )}
