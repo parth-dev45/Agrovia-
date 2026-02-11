@@ -492,7 +492,7 @@ export default function RetailerDashboard() {
               const container = document.getElementById('qr-' + index);
               if (container) {
                 new QRCode(container, {
-                  text: origin + "/scan/" + item.batchId,
+                  text: origin + "/#/scan/" + item.batchId,
                   width: 50,
                   height: 50,
                   correctLevel: QRCode.CorrectLevel.L
@@ -874,7 +874,7 @@ export default function RetailerDashboard() {
                           <div className="flex items-center gap-3">
                             <div className="bg-white p-1 rounded-sm border shrink-0">
                               <QRCodeSVG
-                                value={`${window.location.origin}/scan/${item.batchId}`}
+                                value={`${window.location.origin}/#/scan/${item.batchId}`}
                                 size={32}
                               />
                             </div>

@@ -62,7 +62,7 @@ export function PrintLabel({ batch }: PrintLabelProps) {
           <div className="product-name">{productName}</div>
           <div className="qr">
             <QRCodeSVG
-              value={`${window.location.origin}/scan/${batch.batchId}`}
+              value={`${window.location.origin}/#/scan/${batch.batchId}`}
               size={120}
             />
           </div>
