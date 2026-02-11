@@ -27,7 +27,27 @@ export function QRScanner({ open, onClose, onScan }: QRScannerProps) {
     }, [open]);
 
     const startScanner = async () => {
+        // Wait for the element to be in the DOM
+        const checkElement = () => {
+            return new Promise<void>((resolve, reject) => {
+                let attempts = 0;
+                const interval = setInterval(() => {
+                    attempts++;
+                    const element = document.getElementById(qrCodeRegionId);
+                    if (element) {
+                        clearInterval(interval);
+                        resolve();
+                    } else if (attempts > 10) { // 1 second timeout
+                        clearInterval(interval);
+                        reject(new Error("Scanner element not found in DOM"));
+                    }
+                }, 100);
+            });
+        };
+
         try {
+            await checkElement();
+
             if (!scannerRef.current) {
                 scannerRef.current = new Html5Qrcode(qrCodeRegionId);
             }

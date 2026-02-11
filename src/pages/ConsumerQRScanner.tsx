@@ -17,7 +17,11 @@ export default function ConsumerQRScanner() {
     useEffect(() => {
         startScanner();
         return () => {
-            stopScanner();
+            // Force stop scanner on unmount, ignoring state
+            if (scannerRef.current) {
+                scannerRef.current.stop().catch(err => console.warn("Scanner stop error:", err));
+                scannerRef.current.clear();
+            }
         };
     }, []);
 
