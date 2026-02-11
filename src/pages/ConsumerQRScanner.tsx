@@ -17,10 +17,15 @@ export default function ConsumerQRScanner() {
     useEffect(() => {
         startScanner();
         return () => {
-            // Force stop scanner on unmount, ignoring state
             if (scannerRef.current) {
-                scannerRef.current.stop().catch(err => console.warn("Scanner stop error:", err));
-                scannerRef.current.clear();
+                // stop() is async. clear() must wait for it.
+                scannerRef.current.stop()
+                    .then(() => {
+                        scannerRef.current?.clear();
+                    })
+                    .catch((err) => {
+                        console.warn("Scanner stop error:", err);
+                    });
             }
         };
     }, []);

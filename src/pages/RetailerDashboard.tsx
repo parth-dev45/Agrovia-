@@ -42,6 +42,7 @@ import {
   Clock,
   QrCode
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -437,16 +438,20 @@ export default function RetailerDashboard() {
             <thead>
               <tr>
                 <th>Item</th>
+                <th>Trace</th>
                 <th>Qty</th>
                 <th style="text-align:right">Amt</th>
               </tr>
             </thead>
             <tbody>
-              ${generatedBill.items.map(item => `
+              ${generatedBill.items.map((item, index) => `
                 <tr>
                   <td>
                     ${item.productName}<br/>
                     <small>Batch ${item.batchId} (Gr ${item.grade})</small>
+                  </td>
+                  <td>
+                    <div id="qr-${index}"></div>
                   </td>
                   <td>${item.quantity.toFixed(3)}kg x ${item.pricePerKg.toFixed(3)}</td>
                   <td style="text-align:right">Rs.${item.amount.toFixed(3)}</td>
@@ -473,10 +478,32 @@ export default function RetailerDashboard() {
             <p><strong>agrovia.app</strong></p>
             <p>Thank you for shopping fresh!</p>
           </div>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
           <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
           <script>
+            // Generate Barcode for Bill ID
             JsBarcode("#barcode", "${generatedBill.uniqueCode}", { format: "CODE128", width: 1.5, height: 40, displayValue: true });
-            window.print();
+
+            // Generate QR Codes for each item
+            const items = ${JSON.stringify(generatedBill.items)};
+            const origin = "${window.location.origin}";
+            
+            items.forEach((item, index) => {
+              const container = document.getElementById('qr-' + index);
+              if (container) {
+                new QRCode(container, {
+                  text: origin + "/scan/" + item.batchId,
+                  width: 50,
+                  height: 50,
+                  correctLevel: QRCode.CorrectLevel.L
+                });
+              }
+            });
+
+            // Wait for QR codes to render before printing
+            setTimeout(() => {
+                window.print();
+            }, 500);
           </script>
         </body>
       </html>
@@ -641,7 +668,7 @@ export default function RetailerDashboard() {
                             </p>
                           </div>
                           <Badge variant="outline" className={`text-[10px] ${selectedCustomer.membershipTier === 'Premium' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                              selectedCustomer.membershipTier === 'Standard' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : ''
+                            selectedCustomer.membershipTier === 'Standard' ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : ''
                             }`}>
                             {selectedCustomer.membershipTier?.toUpperCase() || 'MEMBER'}
                           </Badge>
@@ -843,9 +870,20 @@ export default function RetailerDashboard() {
 
                     <div className="space-y-2 text-sm">
                       {generatedBill.items.map((item, i) => (
-                        <div key={i} className="flex justify-between">
-                          <span>{item.productName} <span className="text-muted-foreground text-xs">x{item.quantity}</span></span>
-                          <span className="font-medium">Rs.{item.amount.toFixed(3)}</span>
+                        <div key={i} className="flex justify-between items-center py-2 border-b border-dashed border-border/30 last:border-0">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-white p-1 rounded-sm border shrink-0">
+                              <QRCodeSVG
+                                value={`${window.location.origin}/scan/${item.batchId}`}
+                                size={32}
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{item.productName}</span>
+                              <span className="text-muted-foreground text-xs">Qty: {item.quantity} • Gr {item.grade}</span>
+                            </div>
+                          </div>
+                          <span className="font-medium text-right">Rs.{item.amount.toFixed(3)}</span>
                         </div>
                       ))}
                     </div>
