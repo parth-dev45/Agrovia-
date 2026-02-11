@@ -254,7 +254,7 @@ export default function Login() {
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && handlePasskeySubmit()}
                 className={cn(
-                  'h-12 rounded-xl font-mono text-lg tracking-widest text-center border-slate-200 bg-slate-50 focus:bg-white transition-all',
+                  'h-12 rounded-xl font-mono text-lg tracking-widest text-center border-slate-200 bg-slate-50 dark:bg-slate-950 dark:border-slate-800 dark:text-white focus:bg-white dark:focus:bg-slate-900 transition-all',
                   passkeyError && 'border-destructive focus-visible:ring-destructive bg-destructive/5 animate-shake'
                 )}
                 autoFocus
@@ -268,7 +268,7 @@ export default function Login() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" onClick={() => setPasskeyModalOpen(false)} className="h-11 rounded-xl border-slate-200 hover:bg-slate-50 hover:text-slate-900">
+              <Button variant="outline" onClick={() => setPasskeyModalOpen(false)} className="h-11 rounded-xl border-slate-200 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:hover:bg-slate-800 dark:text-slate-200">
                 Cancel
               </Button>
               <Button onClick={handlePasskeySubmit} className="h-11 rounded-xl shadow-lg shadow-primary/20">
