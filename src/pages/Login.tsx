@@ -173,7 +173,7 @@ export default function Login() {
             <p className="text-slate-500 dark:text-slate-400 text-lg">Select your portal to continue</p>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-700 dark:text-emerald-300">
               <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Hackathon Demo: Passkey (<strong className="font-mono font-bold">PB2806</strong>) auto-filled on click</span>
+              <span>Passkey (<strong className="font-mono font-bold">PB2806</strong>) auto-filled on click</span>
             </div>
           </div>
 
