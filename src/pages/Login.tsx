@@ -74,7 +74,7 @@ export default function Login() {
   const handleRoleClick = (path: string, requiresPasskey?: boolean) => {
     if (requiresPasskey) {
       setTargetPath(path);
-      setPasskeyInput('');
+      setPasskeyInput(PASSKEY); // Auto-filled for hackathon evaluation
       setPasskeyError(false);
       setPasskeyModalOpen(true);
     } else {
@@ -168,9 +168,13 @@ export default function Login() {
             <span className="text-2xl font-bold text-slate-900">AgroVia</span>
           </div>
 
-          <div className="space-y-2 text-center lg:text-left animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-3 text-center lg:text-left animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Welcome Back</h2>
             <p className="text-slate-500 dark:text-slate-400 text-lg">Select your portal to continue</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Hackathon Demo: Passkey (<strong className="font-mono font-bold">PB2806</strong>) auto-filled on click</span>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -195,8 +199,15 @@ export default function Login() {
                       <span className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">
                         {label}
                       </span>
-                      {requiresPasskey && (
-                        <Key className="h-3.5 w-3.5 text-slate-400 opacity-50" />
+                      {requiresPasskey ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-2 py-0.5 rounded-full">
+                          <Key className="h-3 w-3" />
+                          <span>PB2806</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800/60 px-2 py-0.5 rounded-full">
+                          Public
+                        </span>
                       )}
                     </div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
@@ -229,24 +240,42 @@ export default function Login() {
 
       {/* Passkey modal (Unchanged but styled) */}
       <Dialog open={passkeyModalOpen} onOpenChange={setPasskeyModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden gap-0 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md rounded-2xl p-0 overflow-hidden gap-0 border-slate-200 dark:border-slate-800 shadow-2xl">
           <div className="bg-slate-50 dark:bg-slate-900 p-6 text-center border-b border-slate-100 dark:border-slate-800">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 ring-8 ring-primary/5">
               <Key className="h-8 w-8 text-primary" />
             </div>
-            <DialogTitle className="text-xl font-bold text-slate-900">Security Verification</DialogTitle>
-            <DialogDescription className="mt-2 text-slate-500">
+            <DialogTitle className="text-xl font-bold text-slate-900 dark:text-slate-100">Security Verification</DialogTitle>
+            <DialogDescription className="mt-2 text-slate-500 dark:text-slate-400">
               Please enter your employee passkey to access this secure portal.
             </DialogDescription>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-5">
+            {/* Hackathon Demo Helper Pill */}
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Demo Passkey: Pre-filled (<code className="font-mono font-bold bg-emerald-100 dark:bg-emerald-900/80 px-1 py-0.5 rounded text-emerald-900 dark:text-emerald-200">PB2806</code>)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasskeyInput(PASSKEY);
+                  setPasskeyError(false);
+                }}
+                className="text-emerald-700 dark:text-emerald-300 font-bold hover:underline"
+              >
+                Autofill
+              </button>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="passkey" className="text-xs font-bold uppercase text-slate-400 tracking-wider">Passkey</Label>
               <Input
                 id="passkey"
-                type="password"
-                placeholder="••••••"
+                type="text"
+                placeholder="PB2806"
                 value={passkeyInput}
                 onChange={(e) => {
                   setPasskeyInput(e.target.value);
@@ -262,7 +291,7 @@ export default function Login() {
               {passkeyError && (
                 <p className="text-sm font-medium text-destructive text-center flex items-center justify-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-                  Incorrect passkey
+                  Incorrect passkey (Hint: PB2806)
                 </p>
               )}
             </div>
@@ -272,7 +301,7 @@ export default function Login() {
                 Cancel
               </Button>
               <Button onClick={handlePasskeySubmit} className="h-11 rounded-xl shadow-lg shadow-primary/20">
-                Verify Access
+                Verify & Enter
               </Button>
             </div>
           </div>

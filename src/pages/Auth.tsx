@@ -51,7 +51,7 @@ export default function Auth() {
 
   const openPasskeyModal = () => {
     setPasskeyError(false);
-    setPasskeyInput('');
+    setPasskeyInput(PASSKEY);
     setPasskeyModalOpen(true);
   };
 
@@ -232,12 +232,29 @@ export default function Auth() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 p-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-medium">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Demo Passkey: Pre-filled (<code className="font-mono font-bold bg-emerald-100 dark:bg-emerald-900/80 px-1 py-0.5 rounded text-emerald-900 dark:text-emerald-200">PB2806</code>)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPasskeyInput(PASSKEY);
+                  setPasskeyError(false);
+                }}
+                className="text-emerald-700 dark:text-emerald-300 font-bold hover:underline"
+              >
+                Autofill
+              </button>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="passkey">Passkey</Label>
               <Input
                 id="passkey"
-                type="password"
-                placeholder="Enter passkey"
+                type="text"
+                placeholder="PB2806"
                 value={passkeyInput}
                 onChange={(e) => {
                   setPasskeyInput(e.target.value);
@@ -245,13 +262,13 @@ export default function Auth() {
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && handlePasskeySubmit()}
                 className={cn(
-                  'h-11 rounded-lg font-mono',
+                  'h-11 rounded-lg font-mono text-center tracking-wider',
                   passkeyError && 'border-destructive focus-visible:ring-destructive animate-shake'
                 )}
                 autoFocus
               />
               {passkeyError && (
-                <p className="text-sm text-destructive">Incorrect passkey. Please try again.</p>
+                <p className="text-sm text-destructive">Incorrect passkey (Hint: PB2806). Please try again.</p>
               )}
             </div>
           </div>
